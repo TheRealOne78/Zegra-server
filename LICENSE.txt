@@ -1,0 +1,39 @@
+                                  == SOURCE ==
+
+You can access the source code for Zegra-server through git or web interface at
+<https://github.com/TheRealOne78/Zegra-server>.
+
+
+                        == TERMS OF USE AND LICENSING ==
+
+All code in this repository is licensed under the GNU Affero General Public
+License version 3 or later.  A copy of the AGPLv3+ license can be found at
+'/Licenses/LICENSE.AGPLv3.txt' or on the GNU website at
+<https://www.gnu.org/licenses/agpl-3.0.en.html>.  If you have difficulty
+locating the license, please contact the Free Software Foundation through E-Mail
+at <licensing@gnu.org>.
+
+Third-party libraries are credited in the 'LIST OF OTHER ASSETS AND AUTHORS'
+section, along with the license name.
+
+
+                     == LIST OF OTHER ASSETS AND AUTHORS ==
+
+* renault-api: (C) Copyright 2020-2023 epenet.  Licensed under the MIT license.
+  View the license at '/Licenses/LICENSE.epenet.MIT.rst' or on
+  <https://mit-license.org>.  Access the source code via git or the web
+  interface at <https://github.com/hacf-fr/renault-api>.
+
+* python standard libraries:
+  * Copyright (C) 2001-2024 Python Software Foundation. All rights reserved.
+  * Copyright (C) 2000 BeOpen.com. All rights reserved.
+  * Copyright (C) 1995-2001 Corporation for National Research Initiatives. All
+    rights reserved.
+  * Copyright (C) 1991-1995 Stichting Mathematisch Centrum. All rights reserved.
+
+  This project makes use of various Python standard libraries, which are an
+  integral part of its functionality.  While not explicitly listed here, we
+  acknowledge the contributions and support provided by the Python community in
+  developing and maintaining these libraries.
+
+  More information about Python project at <https://python.org/about>
