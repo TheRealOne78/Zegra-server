@@ -340,8 +340,7 @@ async def http_request_handler(request, account, config_dict):
       ntfy_username = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['username']
       ntfy_password = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['password']
       title         = f"[{vehicle_nickname}] AC nu a pornit"
-      #message      = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie ca să poată porni AC - {battery_status.batteryLevel}"
-      message       = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie ca să poată porni AC - "
+      message      = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie ca să poată porni AC - {battery_status.batteryLevel}"
       emoji         = "battery"
       priority      = "default"
       await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
