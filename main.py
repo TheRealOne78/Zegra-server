@@ -169,7 +169,7 @@ async def send_ntfy_notification(uri, username, password, title, message, emoji,
    Send a push notification to a NTFY topic.
 
    'uri' contains the URI of the NTFY topic (Eg. 'https://ntfy.sh/FooBar')
-   'username' and password contain the credentials to access the NTFY topic
+   'username' and 'password' contain the credentials to access the NTFY topic
    'title' contains the notification title
    'message' contains the notification body message
    'emoji' contains emojies that will appear before the title
