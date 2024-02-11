@@ -4,6 +4,7 @@
         "email": "<user@domain>",
         "password": "<password>"
     },
+    "http_hvac_listener_port": <0-65535>,
 
     "Cars": {
         "<Name>": {

@@ -18,11 +18,15 @@
 # GNU Affero General Public License for more details.                  #
 #                                                                      #
 # You should have received a copy of the GNU Affero General Public     #
-# License along with Zegra-server. If not, see                         #
+# License along with Zegra-server. if not, see                         #
 # <http://www.gnu.org/licenses/>.                                      #
 #                                                                      #
 ########################################################################
 
+"""
+zegra-server with automatization features for dealing with MyRenault and MyDacia
+vehicles
+"""
 
 ### IMPORT ###
 
@@ -57,57 +61,60 @@ JSON_CONFIG_FILE_PATH = './config/config.json'
 # Default HVAC HTTP listener port
 HVAC_HTTP_LISTENER_PORT = 47591
 
+# Default NTFY priority
+NTFY_DEFAULT_PRIORITY = 'default'
+
 
 ### FUNCTIONS ###
 
 def print_help():
    """
-    Print a help message
-    """
+   Print a help message
+   """
 
-   version_message = (f'{PROJECT_NAME}\n'
+   version_message = ('%s\n'
                       'A daemon with some basic automatization features for dealing with\n'
                       'Renault and Dacia vehicles\n'
                       '\n'
-                      f'Usage: {sys.argv[0]} [options]\n'
+                      'Usage: %s [options]\n'
                       '\n'
                       'Options:\n'
                       '-h, --help        Output this help list and exit\n'
                       '-v, --version     Output version information and license and exit\n'
                       '-D, --debug       Output the debug log\n'
                       '-c, --config      Set another configuration file than the default\n'
-                      f'                  \'{JSON_CONFIG_FILE_PATH}\' configuration file\n'
+                      '                  `%s` configuration file\n'
                       '\n'
-                      '-p, --port        Set HVAC HTTP listener port (0-65535)'
-                      )
+                      '-p, --port        Set HVAC HTTP listener port (0-65535)',
+                      PROJECT_NAME, sys.argv[0], JSON_CONFIG_FILE_PATH)
 
    print(version_message)
 
 
 def print_version():
    """
-    Print version
-    """
+   Print version
+   """
 
-   version_message = (f'{PROJECT_NAME} version {VERSION_STRING}\n'
+   version_message = ('%s version %s\n'
                       '\n'
                       'Copyright (C) 2024 TheRealOne78\n'
                       'License AGPLv3+: GNU AGPL version 3 or later <https://gnu.org/licenses/agpl.html>.\n'
                       'This is free software: you are free to change and redistribute it.\n'
-                      'There is NO WARRANTY, to the extent permitted by law.'
-                      )
+                      'There is NO WARRANTY, to the extent permitted by law.',
+                      PROJECT_NAME, VERSION_STRING)
 
    print(version_message)
 
 
 def get_config(config_file_path=JSON_CONFIG_FILE_PATH):
    """
-    Read JSON config file and return it as a dictionary
+   Read JSON config file and return it as a dictionary
 
-    'config_file_path' contains the JSON config file path
+   'config_file_path' contains the JSON config file path
 
-    RETURN: config dictionary
-    """
+   RETURN: config dictionary
+   """
 
    with open(config_file_path, 'r', encoding="utf8") as json_file:
       return json.load(json_file)
@@ -115,13 +122,13 @@ def get_config(config_file_path=JSON_CONFIG_FILE_PATH):
 
 async def init_account_info(config_dict):
    """
-    Initiate account, verify if VINs from the JSON config file are correct and
-    return the account back.
+   Initiate account, verify if VINs from the JSON config file are correct and
+   return the account back.
 
-    'config_dict' contains the config data from the JSON config file.
+   'config_dict' contains the config data from the JSON config file.
 
-    RETURN: Kamereon account object
-    """
+   RETURN: Kamereon account object
+   """
 
    async with aiohttp.ClientSession() as websession:
       # Connect to RenaultAPI with credentials
@@ -157,72 +164,86 @@ async def init_account_info(config_dict):
       return account
 
 
-async def send_ntfy_notification(uri, username, password, title, message, emoji):
+async def send_ntfy_notification(uri, username, password, title, message, emoji, priority=NTFY_DEFAULT_PRIORITY):
    """
-    Send a push notification to a NTFY topic.
+   Send a push notification to a NTFY topic.
 
-    'uri' contains the URI of the NTFY topic (Eg. 'https://ntfy.sh/FooBar')
-    'username' and password contain the credentials to access the NTFY topic
-    'title' contains the notification title
-    'message' contains the notification body message
-    'emoji' contains emojies that will appear before the title
-    """
+   'uri' contains the URI of the NTFY topic (Eg. 'https://ntfy.sh/FooBar')
+   'username' and password contain the credentials to access the NTFY topic
+   'title' contains the notification title
+   'message' contains the notification body message
+   'emoji' contains emojies that will appear before the title
+   """
 
-   data = {
-      'title': title,
-      'message': message,
-      'tags': emoji
+   headers = {
+      'Title': title,
+      'Tags': emoji,
+      'Priority': priority
    }
 
-   async with aiohttp.ClientSession() as session:
-      auth = aiohttp.BasicAuth(username, password)
-      async with session.post(uri, data=data, auth=auth) as response:
-         if response.status != 200:
-            logging.error("Failed to send NTFY notification - HTTP reponse status `%s`", response.status)
+   # Send NTFY push asynchronously
+   try:
+      async with aiohttp.ClientSession() as session:
+         auth = aiohttp.BasicAuth(username, password)
+         async with session.post(uri, headers=headers, data=message, auth=auth) as response:
+            if response.status != 200:
+               logging.error("Failed to send NTFY notification - HTTP response status `%s`", response.status)
+   except aiohttp.ClientError as e:
+      logging.error("[NTFY] An error occurred during the HTTP request: %s", e)
+   except Exception as e:
+      logging.error("[NTFY] An unexpected error occurred: %s", e)
 
 
 async def charging_start(vehicle):
    """NOTE:TODO: WIP
-    Send a charging-start payload to RenaultAPI
+   Send a charging-start payload to RenaultAPI
 
-    'vehicle' object should contain a Kamereon vehicle object (account, VIN)
-    """
+   'vehicle' object should contain a Kamereon vehicle object (account, VIN)
+   """
 
    data = {
       'type': 'ChargingStart',
       'attributes': { 'action': 'start' }
    }
 
-   # set_charge_start()    TODO
+   # Start charging
+   response = await vehicle.session.set_vehicle_action(
+       account_id=vehicle.account_id,
+       vin=vehicle.vin,
+       endpoint="actions/charging-start",
+       attributes=data['attributes'],
+   )
 
 async def hvac_start(vehicle):
    """NOTE:TODO: WIP
-    Send a hvac-start payload to RenaultAPI
+   Send a hvac-start payload to RenaultAPI
 
-    'vehicle' object should contain a Kamereon vehicle object (account, VIN)
-    """
+   'vehicle' object should contain a Kamereon vehicle object (account, VIN)
+   """
 
+   # Payload data
    data = {
       'type': 'HvacStart',
       'attributes': { 'action': 'start' }
    }
 
-   #response = await self.session.set_vehicle_action(
-   #    account_id=self.account_id,
-   #    vin=self.vin,
-   #    endpoint="actions/hvac-start",
-   #    attributes=attributes,
-   #) TODO
+   # Start HVAC
+   response = await vehicle.session.set_vehicle_action(
+       account_id=vehicle.account_id,
+       vin=vehicle.vin,
+       endpoint="actions/hvac-start",
+       attributes=data['attributes'],
+   )
 
 
 async def create_vehicle(account, config_vehicle, vehicle_nickname):
    """
-    Run vehicle checking as a separate asyncio task
+   Run vehicle checking as a separate asyncio task
 
-    'account' object should contain a Kamereon account object
-    'config_vehicle' contains the current vehicle's configuration
-    'vehicle_nickname' contains the current vehicle's name (from config file)
-    """
+   'account' object should contain a Kamereon account object
+   'config_vehicle' contains the current vehicle's configuration
+   'vehicle_nickname' contains the current vehicle's name (from config file)
+   """
 
    # Prepare vehicle
    vehicle_nickname = config_vehicle
@@ -258,18 +279,20 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          and 'min' not in status_checkers['battery_percentage_checked']:
          # If critical (min) battery level
          if battery_percentage <= config_vehicle['min_battery_percentage']:
-            title   = f"[{vehicle_nickname}] NIVEL BATERIE CRITIC!"
-            message = f"Nivelul bateriei a '{vehicle_nickname}' este critic - {battery_percentage}"
-            emoji   = "red_square"
-            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji)
+            title    = f"[{vehicle_nickname}] NIVEL BATERIE CRITIC!"
+            message  = f"Nivelul bateriei a '{vehicle_nickname}' este critic - {battery_percentage}"
+            emoji    = "red_square"
+            priority = "urgent"
+            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
             status_checkers['battery_percentage_checked'].append('min')
 
             # If low (not critical) battery level
          elif 'warn' not in status_checkers['battery_percentage_checked']:
-            title   = f"[{vehicle_nickname}] Nivel baterie scăzut!"
-            message = f"Nivelul bateriei a '{vehicle_nickname}' este scăzut - {battery_percentage}"
-            emoji   = "warning"
-            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji)
+            title    = f"[{vehicle_nickname}] Nivel baterie scăzut!"
+            message  = f"Nivelul bateriei a '{vehicle_nickname}' este scăzut - {battery_percentage}"
+            emoji    = "warning"
+            priority = "high"
+            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
             status_checkers['battery_percentage_checked'].append('warn')
 
             # Clear out status checker when vehicle's carger is plugged in
@@ -291,10 +314,11 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                   status_checkers['charge_dict']['hvac'] = True
 
                elif not status_checkers['charge_dict']['notified']:
-                  title   = f"[{vehicle_nickname}] EV REFUZĂ SĂ SE ÎNCARCE!"
-                  message = f"Vehiculul '{vehicle_nickname}' refuză să se încarce - {battery_percentage}"
-                  emoji   = "electric_plug"
-                  await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji)
+                  title    = f"[{vehicle_nickname}] EV REFUZĂ SĂ SE ÎNCARCE!"
+                  message  = f"Vehiculul '{vehicle_nickname}' refuză să se încarce - {battery_percentage}"
+                  emoji    = "electric_plug"
+                  priority = "urgent"
+                  await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
                   status_checkers['charge_dict']['notified'] = True
       # Clear out status checker when the vehicle is fully charged
       elif battery_percentage >= 97: # For slight errors on battery level reading, take 97% as fully charged
@@ -304,10 +328,11 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
 
       # Check if battery is overheating
       if battery_temperature > config_vehicle['max_battery_temperature'] and not battery_temp_notified:
-         title   = f"[{vehicle_nickname}] TEMPERATURĂ BATERIE RIDICATĂ!"
-         message = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature}"
-         emoji   = "stop_sign"
-         await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji)
+         title    = f"[{vehicle_nickname}] TEMPERATURĂ BATERIE RIDICATĂ!"
+         message  = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature}"
+         emoji    = "stop_sign"
+         priority = "urgent"
+         await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
          battery_temp_notified = True
       else:
          if battery_temperature - 3 > config_vehicle['max_battery_temperature']:
@@ -318,7 +343,8 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
       # Sleep async until the next check
       asyncio.sleep(config_vehicle['check_time'] * 60)
 
-async def http_request_handler(request, config_vehicles):
+
+async def http_request_handler(request, account, config_dict):
    """
    Handle POST requests from http_hvac_listener() by sending a HVAC start
    payload to RenaultAPI if current's EV battery level is greater then 20%. If
@@ -329,51 +355,63 @@ async def http_request_handler(request, config_vehicles):
    parameter {Name: "<Name>"}, which will be used to determine which car should
    the HVAC start 'config_vehicle' contains the current vehicle's configuration
 
-   'config_vehicles' contains the config parameters for all vehicles in the JSON
+   'vehicles_config' contains the config parameters for all vehicles in the JSON
    config file
    """
 
    try:
-      data     = await request.json()
-      nickname = data.get('Name')
-      vehicle        = await account.get_api_vehicle(config_vehicles[nickname]['VIN'])
-      battery_status = await vehicle.get_battery_status()
+      data             = await request.json()
+      vehicle_nickname = data.get('Name')
+      vehicle          = await account.get_api_vehicle(config_dict[vehicle_nickname]['VIN'])
+      battery_status   = await vehicle.get_battery_status()
 
-      if battery_status.batteryLevel <= 30:
-         title   = f"[{vehicle_nickname}] AC nu a pornit"
-         message = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie ca să poată porni AC - {battery_status.batteryLevel}"
-         emoji   = "battery"
-      if name in cars:
-         await hvac_start(config_vehicles[name]['VIN'])
-         return aiohttp.web.json_response({'success': True})
+      if name in vehicles_config['Cars']:
+         if battery_status.batteryLevel <= 30:
+            title    = f"[{vehicle_nickname}] AC nu a pornit"
+            message  = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie ca să poată porni AC - {battery_status.batteryLevel}"
+            emoji    = "battery"
+            priority = "default"
+            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
+            return aiohttp.web.json_response({'success': false, 'message': 'vehicle does not have enough battery level to start ac'}, status=403)
+         else:
+            await hvac_start(vehicle)
+            return aiohttp.web.json_response({'success': True})
       else:
-         return aiohttp.web.json_response({'success': False, 'message': 'Car name not found in the JSON config file!'}, status=404)
+         return aiohttp.web.json_response({'success': False, 'message': 'Vehicle name not found in the JSON config file!'}, status=404)
+
    except Exception as e:
-      logging.exception("An unexpected error occurred while handling the request")
+      logging.exception("An unexpected error occurred while handling the request: `%s`", e)
       return aiohttp.web.json_response({'success': False, 'message': str(e)}, status=500)
 
 
-
-async def http_hvac_listener(cars, port=HVAC_HTTP_LISTENER_PORT):
+async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT):
    """
-   Listen to POST requests and send an HVAC start payload with cars[Name]['VIN']
+   Listen to POST requests and send an HVAC start payload with vehicles_config[Name]['VIN']
    through http_request_handler()
    """
 
    app    = aiohttp.web.Application()
-   app.router.add_post('/', lambda request: http_request_handler(request, cars))
+   app.router.add_post('/', lambda request: http_request_handler(request, account, config_dict))
 
    runner = aiohttp.web.AppRunner(app)
    await runner.setup()
 
    site   = aiohttp.web.TCPSite(runner, 'localhost', port)
    await site.start()
-   logging.info("HTTP HVAC listener started at http://localhost:`%s`", port)
+   logging.info("HTTP HVAC listener started at http://localhost:%s", port)
 
 
 async def main():
    """
-   Main
+   Create an asyncio task for each vehicle in the JSON config file to monitor
+   battery status.
+
+   Also create an asyncio task for listening for HTTP requests to start HVAC for
+   a specific vehicle in the JSON config file.
+
+   Optional arguments are also available, with them printing help or vesion,
+   turn on debug logging, use a custom JSON config file and a custom port for
+   the HTTP HVAC listener
    """
 
    # Initialize variables
@@ -413,21 +451,25 @@ async def main():
    if not has_arg['config_dict']:
       config_dict = get_config()
 
-   # Get account info from JSON config file
+   # Get port from config if available and if not has_arg['config_dict']
+   if 'http_hvac_listener_port' in config_dict and not has_arg['config_dict']:
+      port = config_dict['http_hvac_listener_port']
+
+   # Get account Kamereon object
    account = await init_account_info(config_dict)
 
    # asyncio coroutines to gather
    tasks = []
 
-   #Create an asyncio coroutine for each car entry
-   #for car_entry in entries: #TODO
-   #    task = asyncio.create_task(create_vehicle(account, vehicle))
-   #    tasks.append(task)
+   # Create an asyncio coroutine task for each car entry
+   for vehicle_entry in config_dict['Cars']:
+       task = asyncio.create_task(create_vehicle(account, config_dict['Cars'][vehicle_entry], vehicle_entry))
+       tasks.append(task)
 
-   ## Create async task for HTTP Listener
-   #task = asyncio.create_task(http_hvac_listener(account, cars, port))
-   #tasks.append(task)
-   #
+   # Create an asyncio coroutine task for the HTTP HVAC listener
+   task = asyncio.create_task(http_hvac_listener(account, config_dict, port))
+   tasks.append(task)
+
    # Wait for all coroutines to complete
    await asyncio.gather(*tasks)
 
