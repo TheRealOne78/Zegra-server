@@ -388,6 +388,9 @@ async def main():
    the HTTP HVAC listener
    """
 
+   # Turn on info logging by default
+   logging.basicConfig(level=logging.INFO)
+
    # Initialize variables
    config_dict = ""
    port        = HVAC_HTTP_LISTENER_PORT # Default this
@@ -414,7 +417,6 @@ async def main():
          logging.debug("Turned on debug logging")
 
       elif opt in ('-c', '--config'):  # Use another config file path than JSON_CONFIG_FILE_PATH
-         print(arg)
          config_dict            = await get_config(arg)
          has_arg['config_dict'] = True
 
