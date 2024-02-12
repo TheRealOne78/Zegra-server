@@ -172,7 +172,7 @@ async def charging_start(vehicle):
    )
 
 async def hvac_start(vehicle):
-   """TODO: Test
+   """NOTE: Tested
    Send a hvac-start payload to RenaultAPI
 
    'vehicle' object should contain a Kamereon vehicle object (account, VIN)
@@ -304,7 +304,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
 
 
 async def http_request_handler(request, account, config_dict):
-   """TODO: Test
+   """NOTE: Tested
    Handle POST requests from http_hvac_listener() by sending a HVAC start
    payload to RenaultAPI if current's EV battery level is greater then 20%. If
    EV battery level is less or equal to 20%, send a NTFY notification to the
@@ -323,7 +323,7 @@ async def http_request_handler(request, account, config_dict):
       data             = await request.json()
       vehicle_nickname = data.get('Name')
 
-      print(config_dict['Cars'])
+      # Check if nickname can be found in the JSON config file
       if vehicle_nickname not in config_dict['Cars']:
          return aiohttp.web.json_response({'success': False, 'message': 'Vehicle name not found in the JSON config file!'}, status=404)
 
@@ -331,20 +331,21 @@ async def http_request_handler(request, account, config_dict):
       vehicle          = await account.get_api_vehicle(config_dict['Cars'][vehicle_nickname]['VIN'])
       battery_status   = await vehicle.get_battery_status()
 
+      # Start HVAC only if the battery level is higher than 30%
       if battery_status.batteryLevel > 30:
          await hvac_start(vehicle)
          return aiohttp.web.json_response({'success': True})
 
-      # If battery level is less-or-equal than 30, the car can't start, so send a NTFY alert
+      # If battery level is less-or-equal than 30%, the car can't start, so send a NTFY alert
       ntfy_uri      = config_dict['Cars'][vehicle_nickname]['NTFY_topic']
       ntfy_username = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['username']
       ntfy_password = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['password']
       title         = f"[{vehicle_nickname}] AC nu a pornit"
-      message      = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie ca să poată porni AC - {battery_status.batteryLevel}"
+      message      = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie (sub 30%) ca să poată porni AC - {battery_status.batteryLevel}%"
       emoji         = "battery"
       priority      = "default"
       await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
-      return aiohttp.web.json_response({'success': False, 'message': 'Vehicle does not have enough battery level to start AC'}, status=403)
+      return aiohttp.web.json_response({'success': False, 'message': 'Vehicle does not have enough battery level (less than 30%) to start AC'}, status=403)
 
    except Exception as e:
       logging.exception("An unexpected error occurred while handling the request: `%s`", e)
@@ -394,8 +395,8 @@ async def main():
    # Get arguments
    opts, args = getopt.getopt(sys.argv[1:], "hvDc:p:", ['help', 'version', 'debug', 'config=', 'port='])
    has_arg    = {
-      config_dict: False, # Determine whether or not using the argument config file
-      port: False         # Determine whether or not using the argument HTTP port
+      'config_dict': False, # Determine whether or not using the argument config file
+      'port': False         # Determine whether or not using the argument HTTP port
    }
 
    # Handle options
@@ -419,13 +420,14 @@ async def main():
 
       elif opt in ('-p', '--port'):    # Use another port than the default HVAC_HTTP_LISTENER_PORT or from config file
          port = arg
+         has_arg['port'] = True
 
    # Get config from JSON file
    if not has_arg['config_dict']:
       config_dict = await get_config()
 
    # Get port from config if available and if not has_arg['config_dict']
-   if 'http_hvac_listener_port' in config_dict and not has_arg['config_dict']:
+   if 'http_hvac_listener_port' in config_dict and not has_arg['port']:
       port = config_dict['http_hvac_listener_port']
 
    async with aiohttp.ClientSession() as websession:
