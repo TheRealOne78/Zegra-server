@@ -73,23 +73,23 @@ async def print_help():
    Print a help message
    """
 
-   version_message = ('%s\n'
-                      'A daemon with some basic automatization features for dealing with\n'
-                      'Renault and Dacia vehicles\n'
-                      '\n'
-                      'Usage: %s [options]\n'
-                      '\n'
-                      'Options:\n'
-                      '-h, --help        Output this help list and exit\n'
-                      '-v, --version     Output version information and license and exit\n'
-                      '-D, --debug       Output the debug log\n'
-                      '-c, --config      Set another configuration file than the default\n'
-                      '                  `%s` configuration file\n'
-                      '\n'
-                      '-p, --port        Set HVAC HTTP listener port (0-65535)',
-                      PROJECT_NAME, sys.argv[0], JSON_CONFIG_FILE_PATH)
+   help_message = ('%s\n'
+                   'A daemon with some basic automatization features for dealing with\n'
+                   'Renault and Dacia vehicles\n'
+                   '\n'
+                   'Usage: %s [options]\n'
+                   '\n'
+                   'Options:\n'
+                   '-h, --help        Output this help list and exit\n'
+                   '-v, --version     Output version information and license and exit\n'
+                   '-D, --debug       Output the debug log\n'
+                   '-c, --config      Set another configuration file than the default\n'
+                   '                  `%s` configuration file\n'
+                   '\n'
+                   '-p, --port        Set HVAC HTTP listener port (0-65535)',
+                   PROJECT_NAME, sys.argv[0], JSON_CONFIG_FILE_PATH)
 
-   print(version_message)
+   print(help_message)
 
 
 async def print_version():
@@ -341,7 +341,7 @@ async def http_request_handler(request, account, config_dict):
       ntfy_username = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['username']
       ntfy_password = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['password']
       title         = f"[{vehicle_nickname}] AC nu a pornit"
-      message      = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie (sub 30%) ca să poată porni AC - {battery_status.batteryLevel}%"
+      message       = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie (sub 30%) ca să poată porni AC - {battery_status.batteryLevel}%"
       emoji         = "battery"
       priority      = "default"
       await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
@@ -432,50 +432,124 @@ async def main():
    if 'http_hvac_listener_port' in config_dict and not has_arg['port']:
       port = config_dict['http_hvac_listener_port']
 
-   async with aiohttp.ClientSession() as websession:
-      # Connect to RenaultAPI with credentials
-      client = RenaultClient(websession=websession, locale=config_dict['locale'])
-      await client.session.login(config_dict['renault_auth']['email'], config_dict['renault_auth']['password'])
+   # asyncio coroutines to gather
+   tasks = []
 
-      # Get the Kamereon account_id object
-      account_person_data = await client.get_person()
-      account_id          = account_person_data.accounts[0].accountId
-      #TODO:FIXME: Implement accounts for both MyDacia and MyRenault instead of whatever comes first
+   # Store admin NTFY info
+   admin_ntfy_uri      = config_dict['NTFY_admin']['NTFY_topic']
+   admin_ntfy_username = config_dict['NTFY_admin']['NTFY_auth']['username']
+   admin_ntfy_password = config_dict['NTFY_admin']['NTFY_auth']['password']
 
-      # Get the Kameron account object
-      account = await client.get_api_account(account_id)
+   # Send a low priority NTFY notification to the admin about the starting of the server
+   title    = f"[Server starting] Unexpected error - SHUTTING DOWN"
+   message  = f"The {PROJECT_NAME} server is starting ..."
+   emoji    = "computer"
+   priority = "checkered_flag"
+   await send_ntfy_notification(admin_ntfy_uri,
+                                admin_ntfy_username,
+                                admin_ntfy_password,
+                                title,
+                                message,
+                                emoji,
+                                priority)
 
-      ## Verify if VINs from JSON config file are valid
-      vehicles     = await account.get_vehicles()
-      renault_vins = [] # Will store VINs fetched from RenaultAPI
+   # Initiate monitoring of the vehicles and listening for HVAC HTTP requests
+   while True:
+     try:
+        async with aiohttp.ClientSession() as websession:
+           # Connect to RenaultAPI with credentials
+           client = RenaultClient(websession=websession, locale=config_dict['locale'])
+           await client.session.login(config_dict['renault_auth']['email'], config_dict['renault_auth']['password'])
 
-      # Get and store each VIN from the current account into renault_vins
-      for vehicle_link in vehicles.raw_data['vehicleLinks']:
-         renault_vins.append(vehicle_link['vin'])
+           # Get the Kamereon account_id object
+           account_person_data = await client.get_person()
+           account_id          = account_person_data.accounts[0].accountId
+           #TODO:FIXME: Implement accounts for both MyDacia and MyRenault instead of whatever comes first
 
-      # Check each VIN and point out all invalid VINs
-      invalid_vin = False # If True, at least one of the VINs from the JSON config file is invalid
-      for vehicle in config_dict['Cars']:
-         if config_dict['Cars'][vehicle]['VIN'] not in renault_vins:
-            logging.error("[main] `%s` is missing in the Renault/Dacia account!", config_dict['Cars'][vehicle]['VIN'])
-            invalid_vin = True # Set error and continue logging eventual invalid VINs
-      if invalid_vin:
-         sys.exit(1)
+           # Get the Kameron account object
+           account = await client.get_api_account(account_id)
 
-      # asyncio coroutines to gather
-      tasks = []
+           # Get vehicles Kamereon object
+           vehicles = await account.get_vehicles()
 
-      # Create an asyncio coroutine task for each car entry
-      for vehicle_entry in config_dict['Cars']:
-          task = asyncio.create_task(create_vehicle(account, config_dict['Cars'][vehicle_entry], vehicle_entry))
-          tasks.append(task)
+           # Check if there are any errors in vehicles object
+           if vehicles.errors != 'None':
+              # wait a minute before re-logging
+              await asyncio.sleep(60)
+              continue
 
-      # Create an asyncio coroutine task for the HTTP HVAC listener
-      task = asyncio.create_task(http_hvac_listener(account, config_dict, port))
-      tasks.append(task)
+           ## Verify if VINs from JSON config file are valid
+           renault_vins = [] # Will store VINs fetched from RenaultAPI
 
-      # Wait for all coroutines to complete
-      await asyncio.gather(*tasks)
+           # Get and store each VIN from the current account into renault_vins
+           for vehicle_link in vehicles.raw_data['vehicleLinks']:
+              renault_vins.append(vehicle_link['vin'])
+
+           # Check each VIN and point out all invalid VINs
+           invalid_vin = False # If True, at least one of the VINs from the JSON config file is invalid
+           for vehicle in config_dict['Cars']:
+              if config_dict['Cars'][vehicle]['VIN'] not in renault_vins:
+                 logging.error("[main] `%s` is missing in the Renault/Dacia account!", config_dict['Cars'][vehicle]['VIN'])
+                 invalid_vin = True # Set error and continue logging eventual invalid VINs
+           if invalid_vin:
+              sys.exit(1)
+
+
+           # Create an asyncio coroutine task for each car entry
+           for vehicle_entry in config_dict['Cars']:
+               task = asyncio.create_task(create_vehicle(account, config_dict['Cars'][vehicle_entry], vehicle_entry))
+               tasks.append(task)
+
+           # Create an asyncio coroutine task for the HTTP HVAC listener
+           task = asyncio.create_task(http_hvac_listener(account, config_dict, port))
+           tasks.append(task)
+
+           # Wait for all coroutines to complete
+           await asyncio.gather(*tasks)
+
+     # Connection errors
+     except (aiohttp.ClientConnectionError,
+             aiohttp.ClientResponseError,
+             renault_api.kamereon.exceptions.FailedForwardException):
+        # Cancel ongoing tasks
+        for task in tasks:
+           task.cancel()
+
+        # Wait for tasks to be cancelled
+        await asyncio.gather(*tasks)
+
+        # wait a minute before re-logging
+        await asyncio.sleep(60)
+
+     except Exception as e:
+        logging.error("[SERVER SHUTDOWN] An unexpected error occurred: %s", e)
+
+        # Cancel ongoing tasks
+        for task in tasks:
+           task.cancel()
+
+        # Wait for tasks to be cancelled
+        await asyncio.gather(*tasks)
+
+        # Send an urgent NTFY to admin
+        title    = f"[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
+        message  = ("[SERVER SHUTDOWN] An unexpected error occurred: %s\n"
+                    "\n"
+                    "\n"
+                    "Shutting down the server!",
+                    str(e))
+        emoji    = "computer"
+        priority = "urgent"
+        await send_ntfy_notification(admin_ntfy_uri,
+                                     admin_ntfy_username,
+                                     admin_ntfy_password,
+                                     title,
+                                     message,
+                                     emoji,
+                                     priority)
+
+        # Shut down the server ungracefully
+        sys.exit(1)
 
 
 ### START ###
