@@ -197,7 +197,6 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
    """
 
    # Prepare vehicle
-   vehicle_nickname = config_vehicle
    vehicle          = await account.get_api_vehicle(config_vehicle['VIN'])
    ntfy_uri         = config_vehicle['NTFY_topic']
    ntfy_username    = config_vehicle['NTFY_auth']['username']
