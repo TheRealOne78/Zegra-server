@@ -33,6 +33,7 @@ vehicles
 # Import misc
 import json
 import logging
+from datetime import datetime
 
 # Import arguments
 import sys
@@ -45,7 +46,8 @@ import aiohttp.web
 
 # Import renault_api
 from renault_api.renault_client import RenaultClient
-from renault_api.renault_vehicle import RenaultVehicle
+from renault_api.exceptions import *
+from renault_api.kamereon.exceptions import *
 
 
 ### CONSTANTS ###
@@ -69,7 +71,7 @@ NTFY_DEFAULT_PRIORITY = 'default'
 ### FUNCTIONS ###
 
 async def print_help():
-   """NOTE: Tested
+   """
    Print a help message
    """
 
@@ -93,7 +95,7 @@ async def print_help():
 
 
 async def print_version():
-   """NOTE: Tested
+   """
    Print version
    """
 
@@ -109,7 +111,7 @@ async def print_version():
 
 
 async def get_config(config_file_path=JSON_CONFIG_FILE_PATH):
-   """NOTE: Tested
+   """
    Read JSON config file and return it as a dictionary
 
    'config_file_path' contains the JSON config file path
@@ -122,7 +124,7 @@ async def get_config(config_file_path=JSON_CONFIG_FILE_PATH):
 
 
 async def send_ntfy_notification(uri, username, password, title, message, emoji, priority=NTFY_DEFAULT_PRIORITY):
-   """NOTE: Tested
+   """
    Send a push notification to a NTFY topic.
 
    'uri' contains the URI of the NTFY topic (Eg. 'https://ntfy.sh/FooBar')
@@ -152,27 +154,19 @@ async def send_ntfy_notification(uri, username, password, title, message, emoji,
 
 
 async def charging_start(vehicle):
-   """TODO: Test
+   """
    Send a charging-start payload to RenaultAPI
 
    'vehicle' object should contain a Kamereon vehicle object (account, VIN)
    """
 
-   data = {
-      'type': 'ChargingStart',
-      'attributes': { 'action': 'start' }
-   }
+   response = await vehicle.set_charge_start()
 
-   # Start charging
-   response = await vehicle.session.set_vehicle_action(
-       account_id=vehicle.account_id,
-       vin=vehicle.vin,
-       endpoint="actions/charging-start",
-       attributes=data['attributes'],
-   )
+   return response
+
 
 async def hvac_start(vehicle):
-   """NOTE: Tested
+   """
    Send a hvac-start payload to RenaultAPI
 
    'vehicle' object should contain a Kamereon vehicle object (account, VIN)
@@ -194,7 +188,7 @@ async def hvac_start(vehicle):
 
 
 async def create_vehicle(account, config_vehicle, vehicle_nickname):
-   """TODO: Test
+   """
    Run vehicle checking as a separate asyncio task
 
    'account' object should contain a Kamereon account object
@@ -304,7 +298,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
 
 
 async def http_request_handler(request, account, config_dict):
-   """NOTE: Tested
+   """
    Handle POST requests from http_hvac_listener() by sending a HVAC start
    payload to RenaultAPI if current's EV battery level is greater then 20%. If
    EV battery level is less or equal to 20%, send a NTFY notification to the
@@ -353,7 +347,7 @@ async def http_request_handler(request, account, config_dict):
 
 
 async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT):
-   """NOTE: Tested
+   """
    Listen to POST requests and send an HVAC start payload with config_dicconfig_dict[Name]['VIN']
    through http_request_handler()
    """
@@ -376,7 +370,7 @@ async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT)
 
 
 async def main():
-   """TODO: Testing
+   """
    Create an asyncio task for each vehicle in the JSON config file to monitor
    battery status.
 
@@ -441,10 +435,10 @@ async def main():
    admin_ntfy_password = config_dict['NTFY_admin']['NTFY_auth']['password']
 
    # Send a low priority NTFY notification to the admin about the starting of the server
-   title    = f"[Server starting] Unexpected error - SHUTTING DOWN"
-   message  = f"The {PROJECT_NAME} server is starting ..."
-   emoji    = "computer"
-   priority = "checkered_flag"
+   title    = f"[Server starting] Starting {PROJECT_NAME} server ..."
+   message  = f"[{datetime.today().strftime('%Y/%m/%d  - %H:%M:%S')}] The {PROJECT_NAME} server is starting ..."
+   emoji    = "checkered_flag"
+   priority = "min"
    await send_ntfy_notification(admin_ntfy_uri,
                                 admin_ntfy_username,
                                 admin_ntfy_password,
@@ -455,101 +449,115 @@ async def main():
 
    # Initiate monitoring of the vehicles and listening for HVAC HTTP requests
    while True:
-     try:
-        async with aiohttp.ClientSession() as websession:
-           # Connect to RenaultAPI with credentials
-           client = RenaultClient(websession=websession, locale=config_dict['locale'])
-           await client.session.login(config_dict['renault_auth']['email'], config_dict['renault_auth']['password'])
+      try:
+         async with aiohttp.ClientSession() as websession:
+            # Connect to RenaultAPI with credentials
+            client = RenaultClient(websession=websession, locale=config_dict['locale'])
+            await client.session.login(config_dict['renault_auth']['email'], config_dict['renault_auth']['password'])
 
-           # Get the Kamereon account_id object
-           account_person_data = await client.get_person()
-           account_id          = account_person_data.accounts[0].accountId
-           #TODO:FIXME: Implement accounts for both MyDacia and MyRenault instead of whatever comes first
+            # Get the Kamereon account_id object
+            account_person_data = await client.get_person()
+            account_id          = account_person_data.accounts[0].accountId
+            #TODO:FIXME: Implement accounts for both MyDacia and MyRenault instead of whatever comes first
 
-           # Get the Kameron account object
-           account = await client.get_api_account(account_id)
+            # Get the Kameron account object
+            account = await client.get_api_account(account_id)
 
-           # Get vehicles Kamereon object
-           vehicles = await account.get_vehicles()
+            # Get vehicles Kamereon object
+            vehicles = await account.get_vehicles()
 
-           # Check if there are any errors in vehicles object
-           if vehicles.errors != 'None':
-              # wait a minute before re-logging
-              await asyncio.sleep(60)
-              continue
+            # Check if there are any errors in vehicles object
+            if str(vehicles.errors) != 'None':
+               # wait a minute before re-logging
+               print(vehicles.errors)
+               await asyncio.sleep(60)
+               continue
 
-           ## Verify if VINs from JSON config file are valid
-           renault_vins = [] # Will store VINs fetched from RenaultAPI
+            ## Verify if VINs from JSON config file are valid
+            renault_vins = [] # Will store VINs fetched from RenaultAPI
 
-           # Get and store each VIN from the current account into renault_vins
-           for vehicle_link in vehicles.raw_data['vehicleLinks']:
-              renault_vins.append(vehicle_link['vin'])
+            # Get and store each VIN from the current account into renault_vins
+            for vehicle_link in vehicles.raw_data['vehicleLinks']:
+               renault_vins.append(vehicle_link['vin'])
 
-           # Check each VIN and point out all invalid VINs
-           invalid_vin = False # If True, at least one of the VINs from the JSON config file is invalid
-           for vehicle in config_dict['Cars']:
-              if config_dict['Cars'][vehicle]['VIN'] not in renault_vins:
-                 logging.error("[main] `%s` is missing in the Renault/Dacia account!", config_dict['Cars'][vehicle]['VIN'])
-                 invalid_vin = True # Set error and continue logging eventual invalid VINs
-           if invalid_vin:
-              sys.exit(1)
+            # Check each VIN and point out all invalid VINs
+            invalid_vin = False # If True, at least one of the VINs from the JSON config file is invalid
+            for vehicle in config_dict['Cars']:
+               if config_dict['Cars'][vehicle]['VIN'] not in renault_vins:
+                  logging.error("[main] `%s` is missing in the Renault/Dacia account!", config_dict['Cars'][vehicle]['VIN'])
+                  invalid_vin = True # Set error and continue logging eventual invalid VINs
+            if invalid_vin:
+               sys.exit(1)
 
 
-           # Create an asyncio coroutine task for each car entry
-           for vehicle_entry in config_dict['Cars']:
-               task = asyncio.create_task(create_vehicle(account, config_dict['Cars'][vehicle_entry], vehicle_entry))
-               tasks.append(task)
+            # Create an asyncio coroutine task for each car entry
+            for vehicle_entry in config_dict['Cars']:
+                task = asyncio.create_task(create_vehicle(account, config_dict['Cars'][vehicle_entry], vehicle_entry))
+                tasks.append(task)
 
-           # Create an asyncio coroutine task for the HTTP HVAC listener
-           task = asyncio.create_task(http_hvac_listener(account, config_dict, port))
-           tasks.append(task)
+            # Create an asyncio coroutine task for the HTTP HVAC listener
+            task = asyncio.create_task(http_hvac_listener(account, config_dict, port))
+            tasks.append(task)
 
-           # Wait for all coroutines to complete
-           await asyncio.gather(*tasks)
+            # Wait for all coroutines to complete
+            await asyncio.gather(*tasks)
 
-     # Connection errors
-     except (aiohttp.ClientConnectionError,
-             aiohttp.ClientResponseError,
-             renault_api.kamereon.exceptions.FailedForwardException):
-        # Cancel ongoing tasks
-        for task in tasks:
-           task.cancel()
+      # Connection errors
+      except (aiohttp.ClientConnectionError,
+              aiohttp.ClientResponseError,
+              FailedForwardException):
+         # Cancel ongoing tasks
+         for task in tasks:
+            task.cancel()
 
-        # Wait for tasks to be cancelled
-        await asyncio.gather(*tasks)
+         # Wait for tasks to be cancelled
+         await asyncio.gather(*tasks)
 
-        # wait a minute before re-logging
-        await asyncio.sleep(60)
+         # wait a minute before re-logging
+         await asyncio.sleep(60)
 
-     except Exception as e:
-        logging.error("[SERVER SHUTDOWN] An unexpected error occurred: %s", e)
+      # Quota limit
+      except QuotaLimitException:
+         # Cancel ongoing tasks
+         for task in tasks:
+            task.cancel()
 
-        # Cancel ongoing tasks
-        for task in tasks:
-           task.cancel()
+         # Wait for tasks to be cancelled
+         await asyncio.gather(*tasks)
 
-        # Wait for tasks to be cancelled
-        await asyncio.gather(*tasks)
+         # wait 5 minutes before retrying
+         await asyncio.sleep(300)
 
-        # Send an urgent NTFY to admin
-        title    = f"[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
-        message  = ("[SERVER SHUTDOWN] An unexpected error occurred: %s\n"
-                    "\n"
-                    "\n"
-                    "Shutting down the server!",
-                    str(e))
-        emoji    = "computer"
-        priority = "urgent"
-        await send_ntfy_notification(admin_ntfy_uri,
-                                     admin_ntfy_username,
-                                     admin_ntfy_password,
-                                     title,
-                                     message,
-                                     emoji,
-                                     priority)
 
-        # Shut down the server ungracefully
-        sys.exit(1)
+      except Exception as e:
+         logging.error("[SERVER SHUTDOWN] An unexpected error occurred: %s", e)
+
+         # Cancel ongoing tasks
+         for task in tasks:
+            task.cancel()
+
+         # Wait for tasks to be cancelled
+         await asyncio.gather(*tasks)
+
+         # Send an urgent NTFY to admin
+         title    = f"[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
+         message  = ("[SERVER SHUTDOWN] An unexpected error occurred: %s\n"
+                     "\n"
+                     "\n"
+                     "Shutting down the server!",
+                     str(e))
+         emoji    = "computer"
+         priority = "urgent"
+         await send_ntfy_notification(admin_ntfy_uri,
+                                      admin_ntfy_username,
+                                      admin_ntfy_password,
+                                      title,
+                                      message,
+                                      emoji,
+                                      priority)
+
+         # Shut down the server ungracefully
+         sys.exit(1)
 
 
 ### START ###
