@@ -1,0 +1,21 @@
+# Copyright (c) 2024 TheRealOne78
+# Distributed under the terms of the GNU Affero General Public License v3+
+# https://www.gnu.org/licenses/agpl-3.0.en.html
+
+[Unit]
+Name=Zegra-server
+Description=Zegra-server with automatization features for dealing with MyRenault and MyDacia vehicles
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/path/to/zegra-server
+ExecStart=/bin/bash -c 'source venv/bin/activate && main.py'
+Type=simple
+TimeoutStartSec=0
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=default.target
