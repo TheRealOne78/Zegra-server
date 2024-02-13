@@ -5,6 +5,13 @@
         "password": "<password>"
     },
     "http_hvac_listener_port": <0-65535>,
+    "NTFY_admin": {
+        "NTFY_topic": "<URL>",
+        "NTFY_auth": {
+            "username": "<username>",
+            "password": "<password>"
+        }
+    },
 
     "Cars": {
         "<Name>": {
