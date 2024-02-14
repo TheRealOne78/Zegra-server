@@ -504,30 +504,31 @@ async def main():
       # Connection errors
       except (aiohttp.ClientConnectionError,
               aiohttp.ClientResponseError,
-              FailedForwardException):
-         # Cancel ongoing tasks
+              aiohttp.ClientPayloadError,
+              aiohttp.ClientError,
+              asyncio.TimeoutError,
+              FailedForwardException,
+              QuotaLimitException) as e:
+
+         # Cancel ongoing asyncio tasks
          for task in tasks:
             task.cancel()
 
-         # Wait for tasks to be cancelled
-         await asyncio.gather(*tasks, return_exceptions=True)
+         # Wait for all asyncio tasks to finish
+         try:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-         # wait a minute before re-logging
-         await asyncio.sleep(60)
+         # Handle asyncio.CancelledError to ensure it doesn't propagate to the outer exception handler
+         except asyncio.CancelledError:
+            pass
 
-         continue
-
-      # Quota limit
-      except QuotaLimitException:
-         # Cancel ongoing tasks
-         for task in tasks:
-            task.cancel()
-
-         # Wait for tasks to be cancelled
-         await asyncio.gather(*tasks, return_exceptions=True)
-
-         # wait 5 minutes before retrying
-         await asyncio.sleep(300)
+         # Wait before re-logging
+         if type(e) is QuotaLimitException:
+            # if quoata limit exhaustion, wait more than normal connection errors
+            await asyncio.sleep(300) # 5 minutes
+         else:
+            # Normal connection errors
+            await asyncio.sleep(60) # 1 minute
 
          continue
 
@@ -536,11 +537,14 @@ async def main():
 
          # Send an urgent NTFY to admin
          title    = f"[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
-         message  = ("[SERVER SHUTDOWN] An unexpected error occurred: %s\n"
+         message  = ("[SERVER SHUTDOWN] An unexpected error occurred\n"
                      "\n"
+                     "**********************\n"
+                     "%s\n"
+                     "**********************\n"
                      "\n"
-                     "Shutting down the server!",
-                     str(e))
+                     "[%s] Shutting down the server!",
+                     str(e), datetime.today().strftime('%Y/%m/%d  - %H:%M:%S'))
          emoji    = "computer"
          priority = "urgent"
          await send_ntfy_notification(admin_ntfy_uri,
