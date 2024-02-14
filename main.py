@@ -231,7 +231,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          # If critical (min) battery level
          if battery_percentage <= config_vehicle['min_battery_percentage']:
             title    = f"[{vehicle_nickname}] NIVEL BATERIE CRITIC!"
-            message  = f"Nivelul bateriei a '{vehicle_nickname}' este critic - {battery_percentage}"
+            message  = f"Nivelul bateriei a '{vehicle_nickname}' este critic - {battery_percentage}%"
             emoji    = "red_square"
             priority = "urgent"
             await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
@@ -240,7 +240,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          # If low (not critical) battery level
          elif 'warn' not in status_checkers['battery_percentage_checked']:
             title    = f"[{vehicle_nickname}] Nivel baterie scăzut!"
-            message  = f"Nivelul bateriei a '{vehicle_nickname}' este scăzut - {battery_percentage}"
+            message  = f"Nivelul bateriei a '{vehicle_nickname}' este scăzut - {battery_percentage}%"
             emoji    = "warning"
             priority = "high"
             await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
@@ -267,7 +267,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          # If HVAC fails, notify the user via NTFY
          elif not status_checkers['charge_dict']['notified']:
             title    = f"[{vehicle_nickname}] EV REFUZĂ SĂ SE ÎNCARCE!"
-            message  = f"Vehiculul '{vehicle_nickname}' refuză să se încarce - {battery_percentage}"
+            message  = f"Vehiculul '{vehicle_nickname}' refuză să se încarce - {battery_percentage}%"
             emoji    = "electric_plug"
             priority = "urgent"
             await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
@@ -282,7 +282,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
       # Check if battery is overheating
       if battery_temperature > config_vehicle['max_battery_temperature'] and not battery_temp_notified:
          title    = f"[{vehicle_nickname}] TEMPERATURĂ BATERIE RIDICATĂ!"
-         message  = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature}"
+         message  = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature} °"
          emoji    = "stop_sign"
          priority = "urgent"
          await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
@@ -510,10 +510,12 @@ async def main():
             task.cancel()
 
          # Wait for tasks to be cancelled
-         await asyncio.gather(*tasks)
+         await asyncio.gather(*tasks, return_exceptions=True)
 
          # wait a minute before re-logging
          await asyncio.sleep(60)
+
+         continue
 
       # Quota limit
       except QuotaLimitException:
@@ -522,21 +524,15 @@ async def main():
             task.cancel()
 
          # Wait for tasks to be cancelled
-         await asyncio.gather(*tasks)
+         await asyncio.gather(*tasks, return_exceptions=True)
 
          # wait 5 minutes before retrying
          await asyncio.sleep(300)
 
+         continue
 
       except Exception as e:
          logging.error("[SERVER SHUTDOWN] An unexpected error occurred: %s", e)
-
-         # Cancel ongoing tasks
-         for task in tasks:
-            task.cancel()
-
-         # Wait for tasks to be cancelled
-         await asyncio.gather(*tasks)
 
          # Send an urgent NTFY to admin
          title    = f"[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
@@ -554,6 +550,13 @@ async def main():
                                       message,
                                       emoji,
                                       priority)
+
+         # Cancel ongoing tasks
+         for task in tasks:
+            task.cancel()
+
+         # Wait for tasks to be cancelled
+         await asyncio.gather(*tasks)
 
          # Shut down the server ungracefully
          sys.exit(1)
