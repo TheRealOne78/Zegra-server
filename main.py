@@ -197,10 +197,10 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
    """
 
    # Prepare vehicle
-   vehicle          = await account.get_api_vehicle(config_vehicle['VIN'])
-   ntfy_uri         = config_vehicle['NTFY_topic']
-   ntfy_username    = config_vehicle['NTFY_auth']['username']
-   ntfy_password    = config_vehicle['NTFY_auth']['password']
+   vehicle       = await account.get_api_vehicle(config_vehicle['VIN'])
+   ntfy_uri      = config_vehicle['NTFY_topic']
+   ntfy_username = config_vehicle['NTFY_auth']['username']
+   ntfy_password = config_vehicle['NTFY_auth']['password']
 
    # Status checkers for NTFY notifications
    status_checkers = {
@@ -210,7 +210,8 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          'hvac': False,
          'notified': False,
       },
-      'battery_temp_notified': False
+      'battery_temp_notified': False,
+      'battery_charged_notified': False
    }
 
    # Run as a daemon
@@ -250,28 +251,30 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          elif battery_plugged:
             status_checkers['battery_percentage_checked'].clear()
 
+
       ## Check if charging has stopped
-      if battery_plugged \
-         and battery_percentage < 97 \
-         and not battery_not_charging:
-         # Resume charging
-         if status_checkers['charge_dict']['count'] <= config_vehicle['max_tries']:
-            await charging_start(vehicle)
-            status_checkers['charge_dict']['count'] += 1 # Increase check count until equal to config_vehicle['max_tries']
+      if battery_plugged and (battery_percentage < 97):
+         # Clear out battery charged notified status checker
+         status_checkers['battery_charged_notified'] = False
+         if battery_not_charging:
+            # Try to resume charging
+            if status_checkers['charge_dict']['count'] <= config_vehicle['max_tries']:
+               await charging_start(vehicle)
+               status_checkers['charge_dict']['count'] += 1 # Increase check count until equal to config_vehicle['max_tries']
 
-         # Try to start chargin onc again by starting an HVAC cycle
-         elif not status_checkers['charge_dict']['hvac']:
-            await hvac_start(vehicle)
-            status_checkers['charge_dict']['hvac'] = True
+               # Try to start charging by starting an HVAC cycle
+            elif not status_checkers['charge_dict']['hvac']:
+               await hvac_start(vehicle)
+               status_checkers['charge_dict']['hvac'] = True
 
-         # If HVAC fails, notify the user via NTFY
-         elif not status_checkers['charge_dict']['notified']:
-            title    = f"[{vehicle_nickname}] EV REFUZĂ SĂ SE ÎNCARCE!"
-            message  = f"Vehiculul '{vehicle_nickname}' refuză să se încarce - {battery_percentage}%"
-            emoji    = "electric_plug"
-            priority = "urgent"
-            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
-            status_checkers['charge_dict']['notified'] = True
+               # If HVAC fails, notify the user via NTFY
+            elif not status_checkers['charge_dict']['notified']:
+               title    = f"[{vehicle_nickname}] EV REFUZĂ SĂ SE ÎNCARCE!"
+               message  = f"Vehiculul '{vehicle_nickname}' refuză să se încarce - {battery_percentage}%"
+               emoji    = "electric_plug"
+               priority = "urgent"
+               await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
+               status_checkers['charge_dict']['notified'] = True
 
       # Clear out status checker when the vehicle is fully charged
       elif battery_percentage >= 97: # For slight errors on battery level reading, take 97% as fully charged
@@ -279,18 +282,28 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          status_checkers['charge_dict']['hvac']     = False
          status_checkers['charge_dict']['notified'] = False
 
-      # Check if battery is overheating
-      if battery_temperature > config_vehicle['max_battery_temperature'] and not battery_temp_notified:
+         # Send a NTFY push notification when the car is fully charged
+         if battery_plugged and not status_checkers['battery_charged_notified']:
+            title    = f"[{vehicle_nickname}] EV s-a încărcat"
+            message  = f"Vehiculul '{vehicle_nickname}' este încărcat - {battery_percentage}%"
+            emoji    = "white_check_mark"
+            priority = "normal"
+            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
+            status_checkers['battery_charged_notified'] = True
+
+
+      ## Check if battery is overheating
+      if battery_temperature > config_vehicle['max_battery_temperature'] and not status_checkers['battery_temp_notified']:
          title    = f"[{vehicle_nickname}] TEMPERATURĂ BATERIE RIDICATĂ!"
          message  = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature} °"
          emoji    = "stop_sign"
          priority = "urgent"
          await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
-         battery_temp_notified = True
+         status_checkers['battery_temp_notified'] = True
 
       # For safety reasons, let it cool to 'max_battery_temperature - 3' before unchecking battery_temp_notified
       elif battery_temperature - 3 <= config_vehicle['max_battery_temperature']:
-         battery_temp_notified = False
+         status_checkers['battery_temp_notified'] = False
 
       # Sleep async until the next check
       await asyncio.sleep(config_vehicle['check_time'] * 60)
