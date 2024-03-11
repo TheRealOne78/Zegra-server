@@ -178,7 +178,7 @@ async def hvac_start(vehicle):
       'attributes': { 'action': 'start' }
    }
 
-   # Start HVAC
+    # Start HVAC
    response = await vehicle.session.set_vehicle_action(
        account_id=vehicle.account_id,
        vin=vehicle.vin,
@@ -219,10 +219,10 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
       battery_status = await vehicle.get_battery_status()
 
       # Update battery status variables
-      battery_percentage  = battery_status.batteryLevel        # Percentage (0:100)
-      battery_plugged     = battery_status.plugStatus          # Plug status (True/False)
-      battery_temperature = battery_status.batteryTemperature  # Temperature reading depending on locale (°C/°F)
-      battery_is_charging = int(battery_status.chargingStatus) # Is the vehicle charging? (True/False)
+      battery_percentage   = battery_status.batteryLevel             # Percentage (0:100)
+      battery_plugged      = battery_status.plugStatus               # Plug status (True/False)
+      battery_temperature  = battery_status.batteryTemperature       # Temperature reading depending on locale (°C/°F)
+      battery_not_charging = not(int(battery_status.chargingStatus)) # Is the vehicle NOT charging? (True/False)
 
       ## Check if battery percentage is low
       if battery_percentage <= config_vehicle['warn_battery_percentage'] \
@@ -253,7 +253,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
       ## Check if charging has stopped
       if battery_plugged \
          and battery_percentage < 97 \
-         and not battery_is_charging:
+         and not battery_not_charging:
          # Resume charging
          if status_checkers['charge_dict']['count'] <= config_vehicle['max_tries']:
             await charging_start(vehicle)
