@@ -231,13 +231,13 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
       battery_status = await vehicle.get_battery_status()
 
       # Update battery status variables
-      battery_percentage   = battery_status.batteryLevel             # Percentage (0:100)
-      battery_plugged      = battery_status.plugStatus               # Plug status (True/False)
-      battery_temperature  = battery_status.batteryTemperature       # Temperature reading depending on locale (°C/°F)
-      battery_not_charging = not(int(battery_status.chargingStatus)) # Is the vehicle NOT charging? (True/False)
+      battery_percentage   = battery_status.batteryLevel       # Percentage (0:100)
+      battery_plugged      = battery_status.plugStatus         # Plug status (True/False)
+      battery_temperature  = battery_status.batteryTemperature # Temperature reading depending on locale (°C/°F)
+      battery_not_charging = True if (battery_status.chargingStatus < 1.0) else False # Is the vehicle NOT charging? (True/False)
 
       logging.debug("[%s] New car loop check:\n"   # vehicle_nickname
-                    "battery_percentage - %s%%\n"    # battery_percentage
+                    "battery_percentage - %s%%\n"  # battery_percentage
                     "battery_plugged - %s\n"       # battery_plugged
                     "battery_temperature - %s"     # battery_temperature
                     "battery_not_charging - %s\n", # battery_not_charging
