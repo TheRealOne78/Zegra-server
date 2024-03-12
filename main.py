@@ -227,7 +227,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
 
       ## Check if battery percentage is low
       if battery_percentage <= config_vehicle['warn_battery_percentage'] \
-         and not battery_plugged \
+         and not(battery_plugged) \
          and 'min' not in status_checkers['battery_percentage_checked']:
          # If critical (min) battery level
          if battery_percentage <= config_vehicle['min_battery_percentage']:
@@ -263,12 +263,12 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                status_checkers['charge_dict']['count'] += 1 # Increase check count until equal to config_vehicle['max_tries']
 
                # Try to start charging by starting an HVAC cycle
-            elif not status_checkers['charge_dict']['hvac']:
+            elif not(status_checkers['charge_dict']['hvac']):
                await hvac_start(vehicle)
                status_checkers['charge_dict']['hvac'] = True
 
                # If HVAC fails, notify the user via NTFY
-            elif not status_checkers['charge_dict']['notified']:
+            elif not(status_checkers['charge_dict']['notified']):
                title    = f"[{vehicle_nickname}] EV REFUZĂ SĂ SE ÎNCARCE!"
                message  = f"Vehiculul '{vehicle_nickname}' refuză să se încarce - {battery_percentage}%"
                emoji    = "electric_plug"
@@ -283,7 +283,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          status_checkers['charge_dict']['notified'] = False
 
          # Send a NTFY push notification when the car is fully charged
-         if battery_plugged and not status_checkers['battery_charged_notified']:
+         if battery_plugged and not(status_checkers['battery_charged_notified']):
             title    = f"[{vehicle_nickname}] EV s-a încărcat"
             message  = f"Vehiculul '{vehicle_nickname}' este încărcat - {battery_percentage}%"
             emoji    = "white_check_mark"
@@ -293,7 +293,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
 
 
       ## Check if battery is overheating
-      if battery_temperature > config_vehicle['max_battery_temperature'] and not status_checkers['battery_temp_notified']:
+      if battery_temperature > config_vehicle['max_battery_temperature'] and not(status_checkers['battery_temp_notified']):
          title    = f"[{vehicle_nickname}] TEMPERATURĂ BATERIE RIDICATĂ!"
          message  = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature} °"
          emoji    = "stop_sign"
