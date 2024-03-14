@@ -1,2 +1,3 @@
 myConfig.json
 venv/
+*.log*
