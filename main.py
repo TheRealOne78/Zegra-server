@@ -428,7 +428,7 @@ async def init_logger():
    console_handler.setLevel(logging.INFO)  # Set the console handler to log INFO
 
    # Create a formatter
-   formatter = logging.Formatter('[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+   formatter = logging.Formatter('[%(asctime)s] [%(levelname).1s] %(funcName)s(): %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
    # Set formatter for both handlers
    file_handler.setFormatter(formatter)
