@@ -468,6 +468,11 @@ async def main():
    if not has_arg['config_dict']:
       config_dict = await get_config()
 
+   # Enable debugging if it's enabled in the config file
+   if 'debug' in config_dict and config_dict['debug']:
+      logging.basicConfig(level=logging.DEBUG)
+      logging.debug("Turned on debug logging")
+
    # Get port from config if available and if not has_arg['config_dict']
    if 'http_hvac_listener_port' in config_dict and not has_arg['port']:
       port = config_dict['http_hvac_listener_port']

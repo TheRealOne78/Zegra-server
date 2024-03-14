@@ -28,5 +28,6 @@
                 "password": "<password>"
             }
         }
-    }
+    },
+    "debug": <true/false>
 }
