@@ -32,6 +32,7 @@ vehicles
 
 # Import misc
 import json
+import os
 import logging
 from datetime import datetime
 
@@ -66,6 +67,9 @@ HVAC_HTTP_LISTENER_PORT = 47591
 
 # Default NTFY priority
 NTFY_DEFAULT_PRIORITY = 'default'
+
+# Log file path
+LOG_FILE_PATH = './zegra-server.log'
 
 
 ### FUNCTIONS ###
@@ -239,7 +243,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
       logging.debug("[%s] New car loop check:\n"   # vehicle_nickname
                     "battery_percentage - %s%%\n"  # battery_percentage
                     "battery_plugged - %s\n"       # battery_plugged
-                    "battery_temperature - %s"     # battery_temperature
+                    "battery_temperature - %s\n"   # battery_temperature
                     "battery_not_charging - %s\n", # battery_not_charging
 
                     vehicle_nickname,
@@ -414,6 +418,32 @@ async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT)
    # Wait for GET requests
    await asyncio.Event().wait()
 
+async def init_logger():
+   # Create a file handler
+   file_handler = logging.FileHandler(LOG_FILE_PATH, encoding='utf-8')
+   file_handler.setLevel(logging.DEBUG)    # Set the file handler to log all levels
+
+   # Create a console handler
+   console_handler = logging.StreamHandler()
+   console_handler.setLevel(logging.INFO)  # Set the console handler to log INFO
+
+   # Create a formatter
+   formatter = logging.Formatter('[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+   # Set formatter for both handlers
+   file_handler.setFormatter(formatter)
+   console_handler.setFormatter(formatter)
+
+   # Add handlers to the root logger
+   logging.root.addHandler(file_handler)
+   logging.root.addHandler(console_handler)
+
+   # If log file already exists, rename it to 'LOG_FILE_PATH'.old
+   if os.path.isfile(LOG_FILE_PATH):
+      os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
+
+   # Set the default logging level to INFO
+   logging.root.setLevel(logging.INFO)
 
 async def main():
    """
@@ -429,7 +459,13 @@ async def main():
    """
 
    # Turn on info logging by default
-   logging.basicConfig(level=logging.INFO)
+   if os.path.isfile(LOG_FILE_PATH):
+      os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
+   logging.basicConfig(filename=LOG_FILE_PATH,
+                       encoding='utf-8',
+                       format='[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
+                       datefmt='%Y-%m-%d %H:%M:%S',
+                       level=logging.INFO)
 
    # Initialize variables
    config_dict = ""
@@ -453,7 +489,7 @@ async def main():
          sys.exit(0)
 
       elif opt in ('-D', '--debug'):   # Turn on debug logging
-         logging.basicConfig(level=logging.DEBUG)
+         logging.root.setLevel(logging.DEBUG)
          logging.debug("Turned on debug logging")
 
       elif opt in ('-c', '--config'):  # Use another config file path than JSON_CONFIG_FILE_PATH
@@ -470,7 +506,7 @@ async def main():
 
    # Enable debugging if it's enabled in the config file
    if config_dict['debug']:
-      logging.basicConfig(level=logging.DEBUG)
+      logging.root.setLevel(logging.DEBUG)
       logging.debug("Turned on debug logging")
 
    # Get port from config if available and if not has_arg['config_dict']
