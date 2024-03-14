@@ -469,7 +469,7 @@ async def main():
       config_dict = await get_config()
 
    # Enable debugging if it's enabled in the config file
-   if 'debug' in config_dict and config_dict['debug']:
+   if config_dict['debug']:
       logging.basicConfig(level=logging.DEBUG)
       logging.debug("Turned on debug logging")
 
