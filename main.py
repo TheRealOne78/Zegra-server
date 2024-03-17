@@ -556,7 +556,7 @@ async def main():
             # Check if there are any errors in vehicles object
             if str(vehicles.errors) != 'None':
                # wait a minute before re-logging
-               print(vehicles.errors)
+               logging.debug("Got vehicle error:\n%s", vehicles.errors)
                await asyncio.sleep(60)
                continue
 
