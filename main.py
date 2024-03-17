@@ -418,6 +418,7 @@ async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT)
    # Wait for GET requests
    await asyncio.Event().wait()
 
+
 async def init_logger():
    # Create a file handler
    file_handler = logging.FileHandler(LOG_FILE_PATH, encoding='utf-8')
@@ -444,6 +445,7 @@ async def init_logger():
 
    # Set the default logging level to INFO
    logging.root.setLevel(logging.INFO)
+
 
 async def main():
    """
@@ -558,6 +560,14 @@ async def main():
                # wait a minute before re-logging
                logging.debug("Got vehicle error:\n%s", vehicles.errors)
                await asyncio.sleep(60)
+
+               # clear up variables
+               del client
+               del account_person_data
+               del account_id
+               del account
+               del vehicles
+
                continue
 
             ## Verify if VINs from JSON config file are valid
@@ -597,6 +607,8 @@ async def main():
               asyncio.TimeoutError,
               FailedForwardException,
               QuotaLimitException) as e:
+
+         logging.warning("Got exception: %s", e)
 
          # Cancel ongoing asyncio tasks
          for task in tasks:
