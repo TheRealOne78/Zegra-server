@@ -660,7 +660,7 @@ async def main():
          logging.error("[SERVER SHUTDOWN] An unexpected error occurred: %s", e)
 
          # Send an urgent NTFY to admin
-         title    = f"[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
+         title    = "[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
          message  = ("[SERVER SHUTDOWN] An unexpected error occurred\n"
                      "\n"
                      "**********************\n"
