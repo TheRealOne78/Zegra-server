@@ -35,6 +35,7 @@ import json
 import os
 import logging
 from datetime import datetime
+from types import NoneType
 
 # Import arguments
 import sys
@@ -253,6 +254,28 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                     battery_not_charging
                     )
 
+      # Sanitize values
+      has_none = False
+      for name, val in (("battery_percentage",   battery_percentage),
+                        ("battery_plugged",      battery_plugged),
+                        ("battery_temperature",  battery_temperature),
+                        ("battery_not_charging", battery_not_charging)
+                        ):
+         # Sometimes RenaultAPI returns this as none, see bug report
+         # https://github.com/TheRealOne78/Zegra-server/issues/1
+         if type(val) is NoneType or val == "None":
+            logging.warn("[%s] Value for `%s' is `%s'",
+                         vehicle_nickname,
+                         name,
+                         type(val))
+            await asyncio.sleep(3 * 60) # wait 3 minutes before retrying
+            has_none = True
+            break
+
+      if has_none:
+         has_none = False
+         continue
+
       ## Check if battery percentage is low
       if battery_percentage <= config_vehicle['warn_battery_percentage'] \
          and not(battery_plugged) \
@@ -284,7 +307,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
 
 
       ## Check if charging has stopped
-      if battery_plugged and (battery_percentage < 97):
+      if battery_plugged and (battery_percentage < 98):
          # Clear out battery charged notified status checker
          status_checkers['battery_charged_notified'] = False
          if battery_not_charging:
@@ -311,7 +334,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                logging.debug("[%s] NTFY alerted for car refusing to charge - %s%%", vehicle_nickname, battery_percentage)
 
       # Clear out status checker when the vehicle is fully charged
-      elif battery_percentage >= 97: # For slight errors on battery level reading, take 97% as fully charged
+      elif battery_percentage >= 98: # For slight errors on battery level reading, take 98% as fully charged
          status_checkers['charge_dict']['count']    = 0
          status_checkers['charge_dict']['hvac']     = False
          status_checkers['charge_dict']['notified'] = False
@@ -608,6 +631,7 @@ async def main():
               FailedForwardException,
               QuotaLimitException) as e:
 
+
          logging.warning("Got exception: %s", e)
 
          # Cancel ongoing asyncio tasks
@@ -640,11 +664,10 @@ async def main():
          message  = ("[SERVER SHUTDOWN] An unexpected error occurred\n"
                      "\n"
                      "**********************\n"
-                     "%s\n"
+                     "{}\n"
                      "**********************\n"
                      "\n"
-                     "[%s] Shutting down the server!",
-                     str(e), datetime.today().strftime('%Y/%m/%d  - %H:%M:%S'))
+                     "[{}] Shutting down the server!").format(str(e), datetime.today().strftime('%Y/%m/%d  - %H:%M:%S'))
          emoji    = "computer"
          priority = "urgent"
          await send_ntfy_notification(admin_ntfy_uri,
