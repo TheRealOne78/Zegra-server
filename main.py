@@ -265,7 +265,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
             # Sometimes RenaultAPI returns this as none, see bug report
             # https://github.com/TheRealOne78/Zegra-server/issues/1
             if type(val) is NoneType or val == "None":
-               logging.warn("[%s] Value for `%s' is `%s'",
+               logging.warning("[%s] Value for `%s' is `%s'",
                             vehicle_nickname,
                             name,
                             type(val))
@@ -371,7 +371,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          await asyncio.sleep(config_vehicle['check_time'] * 60)
 
    except asyncio.CancelledError:
-      logging.warn("[%s] This asyncio process is being cancelled due to asyncio.CancelledError being raised", vehicle_nickname)
+      logging.warning("[%s] This asyncio process is being cancelled due to asyncio.CancelledError being raised", vehicle_nickname)
       return
 
 
@@ -420,7 +420,7 @@ async def http_request_handler(request, account, config_dict):
       return aiohttp.web.json_response({'success': False, 'message': 'Vehicle does not have enough battery level (less than 30%) to start AC'}, status=403)
 
    except asyncio.CancelledError:
-      logging.warn("This asyncio process is being cancelled, shutting down HVAC listener")
+      logging.warning("This asyncio process is being cancelled, shutting down HVAC listener")
       return
 
    except Exception as e:
