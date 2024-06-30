@@ -51,28 +51,6 @@ from renault_api.renault_client import RenaultClient
 from renault_api.exceptions import *
 from renault_api.kamereon.exceptions import *
 
-
-### CONSTANTS ###
-
-# Project name
-PROJECT_NAME = "Zegra"
-
-# Version string
-VERSION_STRING = "1.0.0"
-
-# Default JSON config file path
-JSON_CONFIG_FILE_PATH = './config/config.json'
-
-# Default HVAC HTTP listener port
-HVAC_HTTP_LISTENER_PORT = 47591
-
-# Default NTFY priority
-NTFY_DEFAULT_PRIORITY = 'default'
-
-# Log file path
-LOG_FILE_PATH = './zegra-server.log'
-
-
 ### FUNCTIONS ###
 
 async def print_help():
