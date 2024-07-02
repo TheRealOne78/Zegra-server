@@ -21,7 +21,7 @@
 #                                                                      #
 ########################################################################
 
-"""Constants"""
+"""Project info"""
 
 # Project name
 PROJECT_NAME = "Zegra-server"
@@ -29,16 +29,8 @@ PROJECT_NAME = "Zegra-server"
 # Version string
 VERSION_STRING = "2.0.0-alpha"
 
-# Default JSON config file path
-# DEPRECATED
-JSON_CONFIG_FILE_PATH = './config/config.json'
+# Project author name
+PROJECT_AUTHOR_NAME = "TheRealOne78"
 
-# Default HVAC HTTP listener port
-HVAC_HTTP_LISTENER_PORT = 47591
-
-# Default NTFY priority
-NTFY_DEFAULT_PRIORITY = 'default'
-
-# Log file path
-# DEPRECATED
-LOG_FILE_PATH = './zegra-server.log'
+# Project author E-Mail
+PROJECT_AUTHOR_EMAIL = "bajcsielias78@gmail.com"

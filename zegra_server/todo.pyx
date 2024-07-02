@@ -1,5 +1,3 @@
-#!python3
-
 ## Copyright_notice ####################################################
 #                                                                      #
 # SPDX-License-Identifier: AGPL-3.0-or-later                           #
@@ -30,6 +28,8 @@ vehicles
 
 ### IMPORT ###
 
+from zegra_server import *
+
 # Import misc
 import json
 import os
@@ -52,46 +52,6 @@ from renault_api.exceptions import *
 from renault_api.kamereon.exceptions import *
 
 ### FUNCTIONS ###
-
-async def print_help():
-   """
-   Print a help message
-   """
-
-   help_message = ('%s\n'
-                   'A daemon with some basic automatization features for dealing with\n'
-                   'Renault and Dacia vehicles\n'
-                   '\n'
-                   'Usage: %s [options]\n'
-                   '\n'
-                   'Options:\n'
-                   '-h, --help        Output this help list and exit\n'
-                   '-v, --version     Output version information and license and exit\n'
-                   '-D, --debug       Output the debug log\n'
-                   '-c, --config      Set another configuration file than the default\n'
-                   '                  `%s` configuration file\n'
-                   '\n'
-                   '-p, --port        Set HVAC HTTP listener port (0-65535)',
-                   PROJECT_NAME, sys.argv[0], JSON_CONFIG_FILE_PATH)
-
-   print(help_message)
-
-
-async def print_version():
-   """
-   Print version
-   """
-
-   version_message = ('%s version %s\n'
-                      '\n'
-                      'Copyright (C) 2024 TheRealOne78\n'
-                      'License AGPLv3+: GNU AGPL version 3 or later <https://gnu.org/licenses/agpl.html>.\n'
-                      'This is free software: you are free to change and redistribute it.\n'
-                      'There is NO WARRANTY, to the extent permitted by law.',
-                      PROJECT_NAME, VERSION_STRING)
-
-   print(version_message)
-
 
 async def get_config(config_file_path=JSON_CONFIG_FILE_PATH):
    """
@@ -435,34 +395,6 @@ async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT)
       await site.stop()
       await runner.cleanup()
       return
-
-async def init_logger():
-   # Create a file handler
-   file_handler = logging.FileHandler(LOG_FILE_PATH, encoding='utf-8')
-   file_handler.setLevel(logging.DEBUG)    # Set the file handler to log all levels
-
-   # Create a console handler
-   console_handler = logging.StreamHandler()
-   console_handler.setLevel(logging.INFO)  # Set the console handler to log INFO
-
-   # Create a formatter
-   formatter = logging.Formatter('[%(asctime)s] [%(levelname).1s] %(funcName)s(): %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-
-   # Set formatter for both handlers
-   file_handler.setFormatter(formatter)
-   console_handler.setFormatter(formatter)
-
-   # Add handlers to the root logger
-   logging.root.addHandler(file_handler)
-   logging.root.addHandler(console_handler)
-
-   # If log file already exists, rename it to 'LOG_FILE_PATH'.old
-   if os.path.isfile(LOG_FILE_PATH):
-      os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
-
-   # Set the default logging level to INFO
-   logging.root.setLevel(logging.INFO)
-
 
 async def main():
    """

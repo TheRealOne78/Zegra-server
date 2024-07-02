@@ -1,3 +1,9 @@
 myConfig.json
 venv/
 *.log*
+*.c
+*.egg-info/
+dist/
+build/
+*.so
+**/__pycache__/
