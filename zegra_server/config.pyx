@@ -5,8 +5,6 @@
 # Copyright (C) 2024 TheRealOne78 <bajcsielias78@gmail.com>            #
 # This file is part of the Zegra-server project                        #
 #                                                                      #
-# Zegra-server is free software: you can redistribute it and/or modify #
-# it under the terms of the GNU Affero General Public License as       #
 # published by the Free Software Foundation, either version 3 of the   #
 # License, or (at your option) any later version.                      #
 #                                                                      #
@@ -21,21 +19,34 @@
 #                                                                      #
 ########################################################################
 
-"""Constants"""
+"""
+Read JSON and YAML files
+"""
 
-import info
+from .constants cimport CONFIG_FILE_PATH
+import json
+import yaml
+import os
 
+cdef dict CONFIG_DICT
 
-# Default JSON config file path
-# DEPRECATED
-cdef const char* JSON_CONFIG_FILE_PATH = b'./config/config.json'
+cdef init_config(str config_file_path = CONFIG_FILE_PATH):
+    """
+    Read JSON/YAML config file and return it as a dictionary.
 
-# Default HVAC HTTP listener port
-cdef const int HVAC_HTTP_LISTENER_PORT = 47591
+    @param config_file_path Contains the config file path
+    """
 
-# Default NTFY priority
-cdef const char* NTFY_DEFAULT_PRIORITY = b'default'
+    global CONFIG_DICT
 
-# Log file path
-# DEPRECATED
-cdef const char* LOG_FILE_PATH = b'./zegra-server.log'
+    # Determine the file extension
+    cdef str ext
+    _, ext = os.path.splitext(config_file_path)
+
+    with open(config_file_path, 'r', encoding="utf8") as config_file:
+        if ext.lower() in ['.json']:
+            CONFIG_DICT = json.load(config_file)
+        elif ext.lower() in ['.yaml', '.yml']:
+            CONFIG_DICT = yaml.safe_load(config_file)
+        else:
+            raise ValueError("Unsupported file extension: {}".format(ext))

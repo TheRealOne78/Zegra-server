@@ -31,15 +31,8 @@ vehicles
 from zegra_server import *
 
 # Import misc
-import json
-import os
-import logging
 from datetime import datetime
 from types import NoneType
-
-# Import arguments
-import sys
-import getopt
 
 # Import asyncio
 import asyncio
@@ -409,14 +402,14 @@ async def main():
    the HTTP HVAC listener
    """
 
-   # Turn on info logging by default
-   if os.path.isfile(LOG_FILE_PATH):
-      os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
-   logging.basicConfig(filename=LOG_FILE_PATH,
-                       encoding='utf-8',
-                       format='[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
-                       datefmt='%Y-%m-%d %H:%M:%S',
-                       level=logging.INFO)
+   #### Turn on info logging by default
+   ###if os.path.isfile(LOG_FILE_PATH):
+   ###   os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
+   ###logging.basicConfig(filename=LOG_FILE_PATH,
+   ###                    encoding='utf-8',
+   ###                    format='[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
+   ###                    datefmt='%Y-%m-%d %H:%M:%S',
+   ###                    level=logging.INFO)
 
    # Initialize variables
    config_dict = ""

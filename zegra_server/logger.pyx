@@ -1,30 +1,82 @@
+## Copyright_notice ####################################################
+#                                                                      #
+# SPDX-License-Identifier: AGPL-3.0-or-later                           #
+#                                                                      #
+# Copyright (C) 2024 TheRealOne78 <bajcsielias78@gmail.com>            #
+# This file is part of the Zegra-server project                        #
+#                                                                      #
+# Zegra-server is free software: you can redistribute it and/or modify #
+# it under the terms of the GNU Affero General Public License as       #
+# published by the Free Software Foundation, either version 3 of the   #
+# License, or (at your option) any later version.                      #
+#                                                                      #
+# Zegra-server is distributed in the hope that it will be useful,      #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of       #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        #
+# GNU Affero General Public License for more details.                  #
+#                                                                      #
+# You should have received a copy of the GNU Affero General Public     #
+# License along with Zegra-server. if not, see                         #
+# <http://www.gnu.org/licenses/>.                                      #
+#                                                                      #
+########################################################################
+
+"""
+Logger
+"""
+
 from .constants cimport LOG_FILE_PATH
+import logging
+import os
 
-cdef class logger:
-   async def init_logger():
+cdef class Logger:
+    cdef str log_file_path
+    cdef str encoding
+    cdef str log_format
+    cdef str date_format
+    cdef int log_level
 
-      # Create a file handler
-      file_handler = logging.FileHandler(LOG_FILE_PATH, encoding='utf-8')
-      file_handler.setLevel(logging.DEBUG)    # Set the file handler to log all levels
+    def __cinit__(self,
+                  str log_file_path = LOG_FILE_PATH,
+                  str encoding      = 'utf-8',
+                  str log_format    = '[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
+                  str date_format   = '%Y-%m-%d %H:%M:%S',
+                  int log_level     = logging.INFO):
+        """
+        Initialize the logger.
+        """
 
-      # Create a console handler
-      console_handler = logging.StreamHandler()
-      console_handler.setLevel(logging.INFO)  # Set the console handler to log INFO
+        self.log_file_path = log_file_path
+        self.encoding      = encoding
+        self.log_format    = log_format
+        self.date_format   = date_format
+        self.log_level     = log_level
 
-      # Create a formatter
-      formatter = logging.Formatter('[%(asctime)s] [%(levelname).1s] %(funcName)s(): %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        """
+        Set up the logging configuration.
+        """
+        logging.basicConfig(
+            filename = self.log_file_path,
+            encoding = self.encoding,
+            format   = self.log_format,
+            datefmt  = self.date_format,
+            level    = self.log_level
+        )
 
-      # Set formatter for both handlers
-      file_handler.setFormatter(formatter)
-      console_handler.setFormatter(formatter)
+        # Create a console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(self.log_level)
 
-      # Add handlers to the root logger
-      logging.root.addHandler(file_handler)
-      logging.root.addHandler(console_handler)
+        # Create a formatter
+        formatter = logging.Formatter(self.log_format,
+                                      datefmt = self.date_format)
 
-      # If log file already exists, rename it to 'LOG_FILE_PATH'.old
-      if os.path.isfile(LOG_FILE_PATH):
-         os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
+        # Set formatter for the console handler
+        console_handler.setFormatter(formatter)
 
-         # Set the default logging level to INFO
-         logging.root.setLevel(logging.INFO)
+        # Add the console handler to the root logger
+        logging.root.addHandler(console_handler)
+
+        # If log file already exists, rename it to 'log_file_path.old'
+        if os.path.isfile(self.log_file_path):
+            os.rename(self.log_file_path, self.log_file_path + '.old')
