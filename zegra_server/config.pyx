@@ -25,12 +25,12 @@
 Read JSON and YAML files
 """
 
-from .constants cimport CONFIG_FILE_PATH
+from .constants cimport C_CONFIG_FILE_PATH
 import json
 import yaml
 import os
 
-cdef dict init_config(str config_file_path = CONFIG_FILE_PATH.decode('utf-8')):
+cdef dict init_config(str config_file_path = C_CONFIG_FILE_PATH.decode('utf-8')):
     """
     Read JSON/YAML config file and return it as a dictionary.
 

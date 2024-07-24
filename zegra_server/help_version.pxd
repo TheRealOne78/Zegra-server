@@ -21,5 +21,7 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 cdef void print_help()
 cdef void print_version()

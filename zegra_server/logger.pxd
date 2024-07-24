@@ -21,6 +21,8 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 cdef object logger
 
 cdef void log_init(str log_file_path = ?,

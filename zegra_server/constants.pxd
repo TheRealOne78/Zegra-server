@@ -21,6 +21,8 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 """Constants"""
 
 cdef char* C_PROJECT_NAME
