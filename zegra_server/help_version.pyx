@@ -21,13 +21,15 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 """
 Print help and version on the screen
 """
 
 from constants import *
 
-cdef print_help():
+cdef void print_help():
    """
    Print a help message
    """
@@ -48,7 +50,7 @@ cdef print_help():
          '-p, --port        Set HVAC HTTP listener port (0-65535)',
          PROJECT_NAME, sys.argv[0], JSON_CONFIG_FILE_PATH)
 
-cdef print_version():
+cdef void print_version():
    """
    Print version
    """

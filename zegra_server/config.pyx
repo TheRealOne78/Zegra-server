@@ -19,6 +19,8 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 """
 Read JSON and YAML files
 """
@@ -28,25 +30,28 @@ import json
 import yaml
 import os
 
-cdef dict CONFIG_DICT
-
-cdef init_config(str config_file_path = CONFIG_FILE_PATH):
+cdef dict init_config(str config_file_path = CONFIG_FILE_PATH.decode('utf-8')):
     """
     Read JSON/YAML config file and return it as a dictionary.
 
-    @param config_file_path Contains the config file path
+    :param config_file_path: config_file_path Contains the config file path.
+    :type config_file_path: str
+    :return: Populated config dictionary.
+    :rtype: dict
     """
 
-    global CONFIG_DICT
+    cdef dict config_dict
 
     # Determine the file extension
     cdef str ext
     _, ext = os.path.splitext(config_file_path)
 
     with open(config_file_path, 'r', encoding="utf8") as config_file:
-        if ext.lower() in ['.json']:
-            CONFIG_DICT = json.load(config_file)
-        elif ext.lower() in ['.yaml', '.yml']:
-            CONFIG_DICT = yaml.safe_load(config_file)
+        if ext.lower() == '.json':
+            config_dict = json.load(config_file)
+        elif ext.lower() == '.yaml' or ext.lower() == '.yml':
+            config_dict = yaml.safe_load(config_file)
         else:
             raise ValueError("Unsupported file extension: {}".format(ext))
+
+    return config_dict

@@ -21,48 +21,56 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 """
 Argument handling
 """
 
 from .config cimport *
 from .help_version cimport *
-from .constants cimport HVAC_HTTP_LISTENER_PORT
+from .constants cimport C_HVAC_HTTP_LISTENER_PORT
 import sys
 import getopt
 import logging
 
 # Initialize variables
-port        = HVAC_HTTP_LISTENER_PORT # Default this
+cdef int port = C_HVAC_HTTP_LISTENER_PORT # Default this
 
 # Get arguments
-opts, args = getopt.getopt(sys.argv[1:], "hvDc:p:", ['help', 'version', 'debug', 'config=', 'port='])
-has_arg    = {
+cdef list opts, args = getopt.getopt(sys.argv[1:], "hvDc:p:", ['help', 'version', 'debug', 'config=', 'port='])
+cdef dict has_arg    = {
    'config_dict': False, # Determine whether or not using the argument config file
    'port': False         # Determine whether or not using the argument HTTP port
 }
 
 # Handle options
+cdef str opt, arg
+
 for opt, arg in opts:
-   if opt in   ('-h', '--help'):    # Print a help message and exit gracefully
-      print_help()
-      sys.exit(0)
+    if opt == '-h' or opt == '--help':
+        print_help()
+        sys.exit(0)
 
-   elif opt in ('-v', '--version'): # Print version & licensing and exit gracefully
-      print_version()
-      sys.exit(0)
+    elif opt == '-v' or opt == '--version':
+        print_version()
+        sys.exit(0)
 
-   elif opt in ('-D', '--debug'):   # Turn on debug logging
-      logging.root.setLevel(logging.DEBUG)
-      logging.debug("Turned on debug logging")
+    elif opt == '-D' or opt == '--debug':
+        logging.root.setLevel(logging.DEBUG)
+        logging.debug("Turned on debug logging")
 
-   elif opt in ('-c', '--config'):  # Use another config file path than JSON_CONFIG_FILE_PATH
-      config_dict            = init_config(arg)
-      has_arg['config_dict'] = True
+    elif opt == '-c' or opt == '--config':
+        config_dict = init_config(arg)
+        has_arg['config_dict'] = True
 
-   elif opt in ('-p', '--port'):    # Use another port than the default HVAC_HTTP_LISTENER_PORT or from config file
-      port = arg
-      has_arg['port'] = True
+    elif opt == '-p' or opt == '--port':
+        try:
+            port = int(arg)  # Convert port to an integer
+        except ValueError:
+            print("Invalid port value: must be an integer")
+            sys.exit(1)
+        has_arg['port'] = True
 
 # Get config from JSON file
 if not has_arg['config_dict']:
@@ -75,4 +83,8 @@ if config_dict['debug']:
 
 # Get port from config if available and if not has_arg['config_dict']
 if 'http_hvac_listener_port' in config_dict and not has_arg['port']:
-   port = config_dict['http_hvac_listener_port']
+    try:
+        port = int(config_dict['http_hvac_listener_port'])  # Convert config port to an integer
+    except ValueError:
+        logging.error("Invalid port value in config: must be an integer")
+        sys.exit(1)

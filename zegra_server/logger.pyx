@@ -21,62 +21,64 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 """
 Logger
 """
 
-from .constants cimport LOG_FILE_PATH
-import logging
+from .constants cimport C_WINDOWS_LOG_FILE_PATH, C_UNIX_LOG_FILE_PATH
+from fastlogging import LogInit, Logger
+from fastlogging import EXCEPTION, FATAL, CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
+from datetime import datetime
 import os
 
-cdef class Logger:
-    cdef str log_file_path
-    cdef str encoding
-    cdef str log_format
-    cdef str date_format
-    cdef int log_level
+cdef str log_file_path
+cdef str encoding
+cdef str log_format
+cdef str date_format
+cdef int log_level
+cdef bint console
+cdef bint colors
+cdef bint console_lock
 
-    def __cinit__(self,
-                  str log_file_path = LOG_FILE_PATH,
-                  str encoding      = 'utf-8',
-                  str log_format    = '[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
-                  str date_format   = '%Y-%m-%d %H:%M:%S',
-                  int log_level     = logging.INFO):
-        """
-        Initialize the logger.
-        """
+cdef object logger
 
-        self.log_file_path = log_file_path
-        self.encoding      = encoding
-        self.log_format    = log_format
-        self.date_format   = date_format
-        self.log_level     = log_level
+cdef void log_init(str log_file_path = None,
+                   str encoding      = 'utf-8',
+                   str log_format    = '[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
+                   str date_format   = '%Y-%m-%d %H:%M:%S',
+                   int log_level     = INFO,
+                   bint console      = True,
+                   bint colors       = True):
+                   #bint console_lock = False): # NOTE: commented due to a bug from fastlogging
+    """
+    Initialize the logger.
 
-        """
-        Set up the logging configuration.
-        """
-        logging.basicConfig(
-            filename = self.log_file_path,
-            encoding = self.encoding,
-            format   = self.log_format,
-            datefmt  = self.date_format,
-            level    = self.log_level
-        )
+    :param log_file_path: Path for log file.
+    :type log_file_path: str
+    :param encoding: Encoding stream
+    :type encoding: str
+    :param log_format: Log format
+    :type log_format: str
+    :param date_format: Date format
+    :type date_format: str
+    :param log_level: Logging level
+    :type log_level: int
+    """
 
-        # Create a console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(self.log_level)
+    # Extern logger
+    global logger
 
-        # Create a formatter
-        formatter = logging.Formatter(self.log_format,
-                                      datefmt = self.date_format)
+    try:
+        # Set default log file path based on the operating system
+        if log_file_path is None:
+            log_file_path = C_WINDOWS_LOG_FILE_PATH.decode('utf-8') if os.name == 'nt' else C_UNIX_LOG_FILE_PATH.decode('utf-8')
 
-        # Set formatter for the console handler
-        console_handler.setFormatter(formatter)
+        # Initialize logger
+        logger = LogInit(pathName=log_file_path, console=console, colors=colors, level=log_level)
 
-        # Add the console handler to the root logger
-        logging.root.addHandler(console_handler)
+        logger.debug("Initialized logger.")
 
-        # If log file already exists, rename it to 'log_file_path.old'
-        if os.path.isfile(self.log_file_path):
-            os.rename(self.log_file_path, self.log_file_path + '.old')
+    except Exception as e:
+        print("[%s] ERROR: Couldn't initialize the logger: %s", datetime.today().strftime(date_format), str(e))

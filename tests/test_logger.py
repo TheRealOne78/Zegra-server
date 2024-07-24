@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 ## Copyright_notice ####################################################
 #                                                                      #
 # SPDX-License-Identifier: AGPL-3.0-or-later                           #
@@ -21,9 +23,6 @@
 #                                                                      #
 ########################################################################
 
-"""
-Config data
-"""
+from .test_logger import test_log
 
-cdef dict CONFIG_DICT
-cdef dict init_config(str config_file_path = ?)
+test_log()

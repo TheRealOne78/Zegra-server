@@ -21,6 +21,8 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 """
 zegra-server with automatization features for dealing with MyRenault and MyDacia
 vehicles
@@ -45,19 +47,6 @@ from renault_api.exceptions import *
 from renault_api.kamereon.exceptions import *
 
 ### FUNCTIONS ###
-
-async def get_config(config_file_path=JSON_CONFIG_FILE_PATH):
-   """
-   Read JSON config file and return it as a dictionary
-
-   'config_file_path' contains the JSON config file path
-
-   RETURN: config dictionary
-   """
-
-   with open(config_file_path, 'r', encoding="utf8") as json_file:
-      return json.load(json_file)
-
 
 async def send_ntfy_notification(uri, username, password, title, message, emoji, priority=NTFY_DEFAULT_PRIORITY):
    """
@@ -128,7 +117,7 @@ async def hvac_start(vehicle):
        attributes=data['attributes'],
    )
 
-   logging.debug("[CHARGING_START] Sent charging-start request")
+   logging.debug("[CHARGING_START] Sent hvac-start request")
 
    # Return response from RenaultAPI
    return response
@@ -247,7 +236,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                if status_checkers['charge_dict']['count'] <= config_vehicle['max_tries']:
                   await charging_start(vehicle)
                   status_checkers['charge_dict']['count'] += 1 # Increase check count until equal to config_vehicle['max_tries']
-                  logging.debug("[%s] Executed chargin_start(), start count at %s - %s%%", vehicle_nickname, status_checkers['charge_dict']['count'], battery_percentage)
+                  logging.debug("[%s] Executed charging_start(), start count at %s - %s%%", vehicle_nickname, status_checkers['charge_dict']['count'], battery_percentage)
 
                   # Try to start charging by starting an HVAC cycle
                elif not(status_checkers['charge_dict']['hvac']):
@@ -606,7 +595,6 @@ async def main():
 
          # Shut down the server ungracefully
          sys.exit(1)
-
 
 ### START ###
 if __name__ == "__main__":

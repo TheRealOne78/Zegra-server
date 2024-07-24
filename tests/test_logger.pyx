@@ -21,9 +21,17 @@
 #                                                                      #
 ########################################################################
 
-"""
-Config data
-"""
+# cython: language_level=3
 
-cdef dict CONFIG_DICT
-cdef dict init_config(str config_file_path = ?)
+from .logger cimport logger, log_init
+
+cdef void test_log2():
+
+    logger.info("Hi 2")
+
+cpdef void test_log():
+    log_init()
+
+    logger.info("Hi")
+
+    test_log2()

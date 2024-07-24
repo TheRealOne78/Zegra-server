@@ -21,5 +21,5 @@
 #                                                                      #
 ########################################################################
 
-cdef print_help()
-cdef print_version()
+cdef void print_help()
+cdef void print_version()

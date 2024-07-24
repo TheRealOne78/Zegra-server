@@ -21,9 +21,13 @@
 #                                                                      #
 ########################################################################
 
-"""
-Config data
-"""
+cdef object logger
 
-cdef dict CONFIG_DICT
-cdef dict init_config(str config_file_path = ?)
+cdef void log_init(str log_file_path = ?,
+                   str encoding      = ?,
+                   str log_format    = ?,
+                   str date_format   = ?,
+                   int log_level     = ?,
+                   bint console      = ?,
+                   bint colors       = ?)
+                   #bint console_lock = ?) # NOTE: commented due to a bug from fastlogging

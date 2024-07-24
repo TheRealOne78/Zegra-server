@@ -23,18 +23,26 @@
 
 """Constants"""
 
-import info
+cdef char* C_PROJECT_NAME
 
+# Version string
+cdef char* C_VERSION_STRING
+
+# Project author name
+cdef char* C_PROJECT_AUTHOR_NAME
+
+# Project author E-Mail
+cdef char* C_PROJECT_AUTHOR_EMAIL
 
 # Default JSON config file path
-cdef str CONFIG_FILE_PATH = './config/config.json'
+cdef char* C_CONFIG_FILE_PATH
 
 # Default HVAC HTTP listener port
-cdef int HVAC_HTTP_LISTENER_PORT = 47591
+cdef int C_HVAC_HTTP_LISTENER_PORT
 
 # Default NTFY priority
-cdef str NTFY_DEFAULT_PRIORITY = 'default'
+cdef char* C_NTFY_DEFAULT_PRIORITY
 
 # Log file path
-# DEPRECATED
-cdef str LOG_FILE_PATH = './zegra-server.log'
+cdef char* C_WINDOWS_LOG_FILE_PATH
+cdef char* C_UNIX_LOG_FILE_PATH
