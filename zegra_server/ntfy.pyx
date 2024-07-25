@@ -23,56 +23,44 @@
 
 # cython: language_level=3
 
-"""
-Argument handling
-"""
+from .constants cimport C_NTFY_DEFAULT_PRIORITY
+from .logger cimport logger
+import aiohttp
 
-from .config cimport *
-from .help_version cimport print_help, print_version
-from .constants cimport C_HVAC_HTTP_LISTENER_PORT, C_CONFIG_FILE_PATH
-from .pycstr cimport py_str_to_c_str
-import sys
-import getopt
+async def send_ntfy_notification(uri,
+                                 username,
+                                 password,
+                                 title,
+                                 message,
+                                 emoji,
+                                 priority = C_NTFY_DEFAULT_PRIORITY):
+   """
+   Send a push notification to a NTFY topic.
 
-cdef dict init_args():
+   'uri' contains the URI of the NTFY topic (Eg. 'https://ntfy.sh/FooBar')
+   'username' and 'password' contain the credentials to access the NTFY topic
+   'title' contains the notification title
+   'message' contains the notification body message
+   'emoji' contains emojies that will appear before the title
+   """
 
-    cdef dict args_dict = {
-        'port':        C_HVAC_HTTP_LISTENER_PORT,
-        'debug':       False,
-        'config_path': C_CONFIG_FILE_PATH
-    }
+   cdef dict headers = {
+      'Title': title,
+      'Tags': emoji,
+      'Priority': priority
+   }
 
-    # Get arguments
-    cdef list opts
-    opts, _ = getopt.getopt(sys.argv[1:], "hvDc:p:", ['help', 'version', 'debug', 'config=', 'port='])
+   # Send NTFY push asynchronously
+   try:
+      async with aiohttp.ClientSession() as session:
+         auth = aiohttp.BasicAuth(username, password)
+         async with session.post(uri, headers=headers, data=message, auth=auth) as response:
+            if response.status != 200:
+               logger.error("Failed to send NTFY notification - HTTP response status `%s`", response.status)
+            else:
+               logger.debug("NTFY notification sent successfully")
 
-    # Handle options
-    cdef str opt, arg
-
-    cdef char* tmp_c_str
-
-    for opt, arg in opts:
-        if opt == '-h' or opt == '--help':
-            print_help()
-            sys.exit(0)
-
-        elif opt == '-v' or opt == '--version':
-            print_version()
-            sys.exit(0)
-
-        elif opt == '-D' or opt == '--debug':
-            args_dict['debug'] = True
-
-        elif opt == '-c' or opt == '--config':
-            tmp_c_str = py_str_to_c_str(arg)
-
-            args_dict['config_path'] = tmp_c_str
-
-        elif opt == '-p' or opt == '--port':
-            try:
-                args_dict['port'] = int(arg)  # Convert port to an integer
-            except ValueError:
-                print("Invalid port value: must be an integer")
-                sys.exit(1)
-
-    return args_dict
+   except aiohttp.ClientError as e:
+      logger.error("An error occurred during the HTTP request: %s", e)
+   except Exception as e:
+      logger.error("An unexpected error occurred: %s", e)

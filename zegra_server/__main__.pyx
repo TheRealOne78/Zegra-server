@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 ## Copyright_notice ####################################################
 #                                                                      #
 # SPDX-License-Identifier: AGPL-3.0-or-later                           #
@@ -32,17 +30,24 @@ vehicles
 
 from .args cimport init_args
 from .config cimport init_config
-from .logger cimport log_init
+from .logger cimport log_init, logger
 from fastlogging import INFO
+from datetime import datetime
+from .constants cimport C_PROJECT_NAME
+from .ntfy import send_ntfy_notification
+import asyncio
+
+cdef bint will_notify_admin = True
 
 cpdef void main():
-    print("Hello world!")
+    """main"""
 
+    # Populate args_dict and config_dict
     cdef dict args_dict, config_dict
-
     args_dict = init_args()
     config_dict = init_config(args_dict['config_path'])
 
+    # Init logger with default level INFO
     cdef int log_level = INFO
     if args_dict['debug'] or config_dict['debug']:
         from fastlogging import DEBUG
@@ -52,3 +57,22 @@ cpdef void main():
                  log_format = '[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
                  date_format = '%Y-%m-%d %H:%M:%S',
                  log_level = log_level)
+
+
+    # Check if NTFY_admin is populated
+    global will_notify_admin
+    if not config_dict['NTFY_admin']['NTFY_topic'] or \
+       not config_dict['NTFY_admin']['NTFY_auth']['username'] or \
+       not config_dict['NTFY_admin']['NTFY_auth']['password']:
+        logger.info("`NTFY_admin' is not complete in the provided config file. The admin of the server won't get any notifications via NTFY")
+        will_notify_admin = False
+
+    if will_notify_admin:
+        # Send a low priority NTFY notification to the admin about the starting of the server
+        asyncio.run(send_ntfy_notification(config_dict['NTFY_admin']['NTFY_topic'],
+                                           config_dict['NTFY_admin']['NTFY_auth']['username'],
+                                           config_dict['NTFY_admin']['NTFY_auth']['password'],
+                                           f"[Server starting] Starting {C_PROJECT_NAME.decode('utf-8')} server ...",
+                                           f"[{datetime.today().strftime('%Y/%m/%d  - %H:%M:%S')}] The {C_PROJECT_NAME.decode('utf-8')} server is starting ...",
+                                           "checkered_flag",
+                                           "min"))

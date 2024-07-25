@@ -31,6 +31,7 @@ vehicles
 ### IMPORT ###
 
 from zegra_server import *
+from .logger cimport logger
 
 # Import misc
 from datetime import datetime
@@ -48,39 +49,6 @@ from renault_api.kamereon.exceptions import *
 
 ### FUNCTIONS ###
 
-async def send_ntfy_notification(uri, username, password, title, message, emoji, priority=NTFY_DEFAULT_PRIORITY):
-   """
-   Send a push notification to a NTFY topic.
-
-   'uri' contains the URI of the NTFY topic (Eg. 'https://ntfy.sh/FooBar')
-   'username' and 'password' contain the credentials to access the NTFY topic
-   'title' contains the notification title
-   'message' contains the notification body message
-   'emoji' contains emojies that will appear before the title
-   """
-
-   headers = {
-      'Title': title,
-      'Tags': emoji,
-      'Priority': priority
-   }
-
-   # Send NTFY push asynchronously
-   try:
-      async with aiohttp.ClientSession() as session:
-         auth = aiohttp.BasicAuth(username, password)
-         async with session.post(uri, headers=headers, data=message, auth=auth) as response:
-            if response.status != 200:
-               logging.error("[NTFY] Failed to send NTFY notification - HTTP response status `%s`", response.status)
-            else:
-               logging.debug("[NTFY] NTFY notification sent successfully")
-
-   except aiohttp.ClientError as e:
-      logging.error("[NTFY] An error occurred during the HTTP request: %s", e)
-   except Exception as e:
-      logging.error("[NTFY] An unexpected error occurred: %s", e)
-
-
 async def charging_start(vehicle):
    """
    Send a charging-start payload to RenaultAPI
@@ -90,7 +58,7 @@ async def charging_start(vehicle):
 
    response = await vehicle.set_charge_start()
 
-   logging.debug("[CHARGING_START] Sent charging-start request")
+   logger.debug("[CHARGING_START] Sent charging-start request")
 
    # Return response from RenaultAPI
    return response
@@ -103,21 +71,15 @@ async def hvac_start(vehicle):
    'vehicle' object should contain a Kamereon vehicle object (account, VIN)
    """
 
-   # Payload data
-   data = {
-      'type': 'HvacStart',
-      'attributes': { 'action': 'start' }
-   }
-
     # Start HVAC
    response = await vehicle.session.set_vehicle_action(
-       account_id=vehicle.account_id,
-       vin=vehicle.vin,
-       endpoint="actions/hvac-start",
-       attributes=data['attributes'],
+       account_id = vehicle.account_id,
+       vin        = vehicle.vin,
+       endpoint   = "actions/hvac-start",
+       attributes = { 'action': 'start' },
    )
 
-   logging.debug("[CHARGING_START] Sent hvac-start request")
+   logger.debug("[CHARGING_START] Sent hvac-start request")
 
    # Return response from RenaultAPI
    return response
@@ -132,24 +94,27 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
    'vehicle_nickname' contains the current vehicle's name (from config file)
    """
 
+   # Account vehicle
+   cdef dict vehicle = {}
+
+   # Status checkers for NTFY notifications
+   cdef dict status_checkers = {
+      'battery_percentage_checked': [],
+      'charge_dict': {
+         'count': 0,
+         'hvac': False,
+         'notified': False,
+      },
+      'battery_temp_notified': False,
+      'battery_charged_notified': False
+     }
+
    try:
       # Prepare vehicle
       vehicle       = await account.get_api_vehicle(config_vehicle['VIN'])
       ntfy_uri      = config_vehicle['NTFY_topic']
       ntfy_username = config_vehicle['NTFY_auth']['username']
       ntfy_password = config_vehicle['NTFY_auth']['password']
-
-      # Status checkers for NTFY notifications
-      status_checkers = {
-         'battery_percentage_checked': [],
-         'charge_dict': {
-            'count': 0,
-            'hvac': False,
-            'notified': False,
-         },
-         'battery_temp_notified': False,
-         'battery_charged_notified': False
-        }
 
       # Run as a daemon
       while True:
@@ -162,7 +127,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          battery_temperature  = battery_status.batteryTemperature # Temperature reading depending on locale (°C/°F)
          battery_not_charging = True if (battery_status.chargingStatus < 1.0) else False # Is the vehicle NOT charging? (True/False)
 
-         logging.debug("[%s] New car loop check:\n"   # vehicle_nickname
+         logger.debug("[%s] New car loop check:\n"    # vehicle_nickname
                        "battery_percentage - %s%%\n"  # battery_percentage
                        "battery_plugged - %s\n"       # battery_plugged
                        "battery_temperature - %s\n"   # battery_temperature
@@ -182,10 +147,10 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                            ("battery_temperature",  battery_temperature),
                            ("battery_not_charging", battery_not_charging)
                            ):
-            # Sometimes RenaultAPI returns this as none, see bug report
+            # Sometimes RenaultAPI returns this as None, see bug report
             # https://github.com/TheRealOne78/Zegra-server/issues/1
             if type(val) is NoneType or val == "None":
-               logging.warning("[%s] Value for `%s' is `%s'",
+               logger.warning("[%s] Value for `%s' is `%s'",
                             vehicle_nickname,
                             name,
                             type(val))
@@ -209,7 +174,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                priority = "urgent"
                await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
                status_checkers['battery_percentage_checked'].append('min')
-               logging.debug("[%s] NTFY alerted for very low battery - %s%%", vehicle_nickname, battery_percentage)
+               logger.debug("[%s] NTFY alerted for very low battery - %s%%", vehicle_nickname, battery_percentage)
 
             # If low (not critical) battery level
             elif 'warn' not in status_checkers['battery_percentage_checked']:
@@ -219,12 +184,12 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                priority = "high"
                await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
                status_checkers['battery_percentage_checked'].append('warn')
-               logging.debug("[%s] NTFY warned for low battery - %s%%", vehicle_nickname, battery_percentage)
+               logger.debug("[%s] NTFY warned for low battery - %s%%", vehicle_nickname, battery_percentage)
 
             # Clear out status checker when vehicle's carger is plugged in
             elif battery_plugged:
                status_checkers['battery_percentage_checked'].clear()
-               logging.debug("[%s] Cleared 'battery_percentage_checked' status checker", vehicle_nickname)
+               logger.debug("[%s] Cleared 'battery_percentage_checked' status checker", vehicle_nickname)
 
 
          ## Check if charging has stopped
@@ -236,13 +201,13 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                if status_checkers['charge_dict']['count'] <= config_vehicle['max_tries']:
                   await charging_start(vehicle)
                   status_checkers['charge_dict']['count'] += 1 # Increase check count until equal to config_vehicle['max_tries']
-                  logging.debug("[%s] Executed charging_start(), start count at %s - %s%%", vehicle_nickname, status_checkers['charge_dict']['count'], battery_percentage)
+                  logger.debug("[%s] Executed charging_start(), start count at %s - %s%%", vehicle_nickname, status_checkers['charge_dict']['count'], battery_percentage)
 
                   # Try to start charging by starting an HVAC cycle
                elif not(status_checkers['charge_dict']['hvac']):
                   await hvac_start(vehicle)
                   status_checkers['charge_dict']['hvac'] = True
-                  logging.debug("[%s] HVAC started because charging_start() failed for %s times - %s%%", vehicle_nickname, status_checkers['charge_dict']['count'], battery_percentage)
+                  logger.debug("[%s] HVAC started because charging_start() failed for %s times - %s%%", vehicle_nickname, status_checkers['charge_dict']['count'], battery_percentage)
 
                   # If HVAC fails, notify the user via NTFY
                elif not(status_checkers['charge_dict']['notified']):
@@ -252,14 +217,14 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                   priority = "urgent"
                   await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
                   status_checkers['charge_dict']['notified'] = True
-                  logging.debug("[%s] NTFY alerted for car refusing to charge - %s%%", vehicle_nickname, battery_percentage)
+                  logger.debug("[%s] NTFY alerted for car refusing to charge - %s%%", vehicle_nickname, battery_percentage)
 
          # Clear out status checker when the vehicle is fully charged
          elif battery_percentage >= 98: # For slight errors on battery level reading, take 98% as fully charged
             status_checkers['charge_dict']['count']    = 0
             status_checkers['charge_dict']['hvac']     = False
             status_checkers['charge_dict']['notified'] = False
-            logging.debug("[%s] Cleared 'status_checkers['charge_dict'][*]' status checkers", vehicle_nickname)
+            logger.debug("[%s] Cleared 'status_checkers['charge_dict'][*]' status checkers", vehicle_nickname)
 
             # Send a NTFY push notification when the car is fully charged
             if battery_plugged and not(status_checkers['battery_charged_notified']):
@@ -269,7 +234,7 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
                priority = "default"
                await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
                status_checkers['battery_charged_notified'] = True
-               logging.debug("[%s] NTFY notified for fully charged car - %s%%", vehicle_nickname, battery_percentage)
+               logger.debug("[%s] NTFY notified for fully charged car - %s%%", vehicle_nickname, battery_percentage)
 
 
          ## Check if battery is overheating
@@ -280,102 +245,18 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
             priority = "urgent"
             await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
             status_checkers['battery_temp_notified'] = True
-            logging.debug("[%s] NTFY alerted for battery temperature too high - %s°", vehicle_nickname, battery_temperature)
+            logger.debug("[%s] NTFY alerted for battery temperature too high - %s°", vehicle_nickname, battery_temperature)
 
          # For safety reasons, let it cool to 'max_battery_temperature - 3' before unchecking battery_temp_notified
          elif battery_temperature - 3 <= config_vehicle['max_battery_temperature']:
             status_checkers['battery_temp_notified'] = False
-            logging.debug("[%s] Cleared 'battery_temp_notified' temperature status checkers", vehicle_nickname)
+            logger.debug("[%s] Cleared 'battery_temp_notified' temperature status checkers", vehicle_nickname)
 
          # Sleep async until the next check
          await asyncio.sleep(config_vehicle['check_time'] * 60)
 
    except asyncio.CancelledError:
-      logging.warning("[%s] This asyncio process is being cancelled due to asyncio.CancelledError being raised", vehicle_nickname)
-      return
-
-
-async def http_request_handler(request, account, config_dict):
-   """
-   Handle POST requests from http_hvac_listener() by sending a HVAC start
-   payload to RenaultAPI if current's EV battery level is greater then 20%. If
-   EV battery level is less or equal to 20%, send a NTFY notification to the
-   client mentioning that HVAC cannot be started due to low battery.
-
-   'request' contains the request data from the client, containing the body
-   parameter {Name: "<Name>"}, which will be used to determine which car should
-   the HVAC start 'config_vehicle' contains the current vehicle's configuration
-
-   'config_dict' contains the config parameters for all vehicles in the JSON
-   config file
-   """
-
-   try:
-      # Retreive vehicle name from POST request
-      data             = await request.json()
-      vehicle_nickname = data.get('Name')
-
-      # Check if nickname can be found in the JSON config file
-      if vehicle_nickname not in config_dict['Cars']:
-         return aiohttp.web.json_response({'success': False, 'message': 'Vehicle name not found in the JSON config file!'}, status=404)
-
-      # Fetch vehicle and battery status
-      vehicle          = await account.get_api_vehicle(config_dict['Cars'][vehicle_nickname]['VIN'])
-      battery_status   = await vehicle.get_battery_status()
-
-      # Start HVAC only if the battery level is higher than 30%
-      if battery_status.batteryLevel > 30:
-         await hvac_start(vehicle)
-         return aiohttp.web.json_response({'success': True})
-
-      # If battery level is less-or-equal than 30%, the car can't start, so send a NTFY alert
-      ntfy_uri      = config_dict['Cars'][vehicle_nickname]['NTFY_topic']
-      ntfy_username = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['username']
-      ntfy_password = config_dict['Cars'][vehicle_nickname]['NTFY_auth']['password']
-      title         = f"[{vehicle_nickname}] AC nu a pornit"
-      message       = f"Vehiculul '{vehicle_nickname}' nu are suficientă baterie (sub 30%) ca să poată porni AC - {battery_status.batteryLevel}%"
-      emoji         = "battery"
-      priority      = "default"
-      await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
-      return aiohttp.web.json_response({'success': False, 'message': 'Vehicle does not have enough battery level (less than 30%) to start AC'}, status=403)
-
-   except asyncio.CancelledError:
-      logging.warning("This asyncio process is being cancelled, shutting down HVAC listener")
-      return
-
-   except Exception as e:
-      logging.exception("An unexpected error occurred while handling the request: `%s`", e)
-      return aiohttp.web.json_response({'success': False, 'message': str(e)}, status=500)
-
-
-async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT):
-   """
-   Listen to POST requests and send an HVAC start payload with config_dicconfig_dict[Name]['VIN']
-   through http_request_handler()
-   """
-
-   try:
-      app    = aiohttp.web.Application()
-      app.router.add_post('/', lambda request: http_request_handler(request, account, config_dict))
-
-      # Set up a web runner
-      runner = aiohttp.web.AppRunner(app)
-      await runner.setup()
-
-      # Start TCP socket
-      site   = aiohttp.web.TCPSite(runner, 'localhost', port)
-      await site.start()
-
-      logging.info("HTTP HVAC listener started at http://localhost:%s", port)
-
-      # Wait for GET requests
-      await asyncio.Event().wait()
-
-   except asyncio.CancelledError:
-      logging.info("HTTP HVAC listener cancelled due to this asyncio process being cancelled")
-
-      await site.stop()
-      await runner.cleanup()
+      logger.warning("[%s] This asyncio process is being cancelled due to asyncio.CancelledError being raised", vehicle_nickname)
       return
 
 async def _main():
@@ -391,82 +272,8 @@ async def _main():
    the HTTP HVAC listener
    """
 
-   # TODO: Remove - moved to __main__.pyx
-   #### Turn on info logging by default
-   ###if os.path.isfile(LOG_FILE_PATH):
-   ###   os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
-   ###logging.basicConfig(filename=LOG_FILE_PATH,
-   ###                    encoding='utf-8',
-   ###                    format='[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
-   ###                    datefmt='%Y-%m-%d %H:%M:%S',
-   ###                    level=logging.INFO)
-
-   ### Initialize variables
-   ##config_dict = ""
-   ##port        = HVAC_HTTP_LISTENER_PORT # Default this
-
-   ### Get arguments
-   ##opts, args = getopt.getopt(sys.argv[1:], "hvDc:p:", ['help', 'version', 'debug', 'config=', 'port='])
-   ##has_arg    = {
-   ##   'config_dict': False, # Determine whether or not using the argument config file
-   ##   'port': False         # Determine whether or not using the argument HTTP port
-   ##}
-
-   ### Handle options
-   ##for opt, arg in opts:
-   ##   if opt in   ('-h', '--help'):    # Print a help message and exit gracefully
-   ##      await print_help()
-   ##      sys.exit(0)
-
-   ##   elif opt in ('-v', '--version'): # Print version & licensing and exit gracefully
-   ##      await print_version()
-   ##      sys.exit(0)
-
-   ##   elif opt in ('-D', '--debug'):   # Turn on debug logging
-   ##      logging.root.setLevel(logging.DEBUG)
-   ##      logging.debug("Turned on debug logging")
-
-   ##   elif opt in ('-c', '--config'):  # Use another config file path than JSON_CONFIG_FILE_PATH
-   ##      config_dict            = await get_config(arg)
-   ##      has_arg['config_dict'] = True
-
-   ##   elif opt in ('-p', '--port'):    # Use another port than the default HVAC_HTTP_LISTENER_PORT or from config file
-   ##      port = arg
-   ##      has_arg['port'] = True
-
-   ### Get config from JSON file
-   ##if not has_arg['config_dict']:
-   ##   config_dict = await get_config()
-
-   ### Enable debugging if it's enabled in the config file
-   ##if config_dict['debug']:
-   ##   logging.root.setLevel(logging.DEBUG)
-   ##   logging.debug("Turned on debug logging")
-
-   ### Get port from config if available and if not has_arg['config_dict']
-   ##if 'http_hvac_listener_port' in config_dict and not has_arg['port']:
-   ##   port = config_dict['http_hvac_listener_port']
-
    # asyncio coroutines to gather
    tasks = []
-
-   # Store admin NTFY info
-   admin_ntfy_uri      = config_dict['NTFY_admin']['NTFY_topic']
-   admin_ntfy_username = config_dict['NTFY_admin']['NTFY_auth']['username']
-   admin_ntfy_password = config_dict['NTFY_admin']['NTFY_auth']['password']
-
-   # Send a low priority NTFY notification to the admin about the starting of the server
-   title    = f"[Server starting] Starting {PROJECT_NAME} server ..."
-   message  = f"[{datetime.today().strftime('%Y/%m/%d  - %H:%M:%S')}] The {PROJECT_NAME} server is starting ..."
-   emoji    = "checkered_flag"
-   priority = "min"
-   await send_ntfy_notification(admin_ntfy_uri,
-                                admin_ntfy_username,
-                                admin_ntfy_password,
-                                title,
-                                message,
-                                emoji,
-                                priority)
 
    # Initiate monitoring of the vehicles and listening for HVAC HTTP requests
    while True:
@@ -490,7 +297,7 @@ async def _main():
             # Check if there are any errors in vehicles object
             if str(vehicles.errors) != 'None':
                # wait a minute before re-logging
-               logging.debug("Got vehicle error:\n%s", vehicles.errors)
+               logger.debug("Got vehicle error:\n%s", vehicles.errors)
                await asyncio.sleep(60)
 
                # clear up variables
@@ -513,7 +320,7 @@ async def _main():
             invalid_vin = False # If True, at least one of the VINs from the JSON config file is invalid
             for vehicle in config_dict['Cars']:
                if config_dict['Cars'][vehicle]['VIN'] not in renault_vins:
-                  logging.error("[main] `%s` is missing in the Renault/Dacia account!", config_dict['Cars'][vehicle]['VIN'])
+                  logger.error("[main] `%s` is missing in the Renault/Dacia account!", config_dict['Cars'][vehicle]['VIN'])
                   invalid_vin = True # Set error and continue logging eventual invalid VINs
             if invalid_vin:
                sys.exit(1)
@@ -541,7 +348,7 @@ async def _main():
               QuotaLimitException) as e:
 
 
-         logging.warning("Got exception: %s", e)
+         logger.warning("Got exception: %s", e)
 
          # Cancel ongoing asyncio tasks
          for task in tasks:
@@ -566,7 +373,7 @@ async def _main():
          continue
 
       except Exception as e:
-         logging.error("[SERVER SHUTDOWN] An unexpected error occurred: %s", e)
+         logger.error("[SERVER SHUTDOWN] An unexpected error occurred: %s", e)
 
          # Send an urgent NTFY to admin
          title    = "[SERVER SHUTDOWN] Unexpected error - SHUTTING DOWN"
@@ -596,7 +403,3 @@ async def _main():
 
          # Shut down the server ungracefully
          sys.exit(1)
-
-#### START ###
-#if __name__ == "__main__":
-#   asyncio.run(main())
