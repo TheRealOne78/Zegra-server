@@ -23,9 +23,32 @@
 #                                                                      #
 ########################################################################
 
+# cython: language_level=3
+
 """
 Zegra-server with automatization features for dealing with MyRenault and MyDacia
 vehicles
 """
 
-from zegra_server import *
+from .args cimport init_args
+from .config cimport init_config
+from .logger cimport log_init
+from fastlogging import INFO
+
+cpdef void main():
+    print("Hello world!")
+
+    cdef dict args_dict, config_dict
+
+    args_dict = init_args()
+    config_dict = init_config(args_dict['config_path'])
+
+    cdef int log_level = INFO
+    if args_dict['debug'] or config_dict['debug']:
+        from fastlogging import DEBUG
+        log_level = DEBUG
+        log_init(log_file_path = None,
+                 encoding = 'utf-8',
+                 log_format = '[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
+                 date_format = '%Y-%m-%d %H:%M:%S',
+                 log_level = log_level)

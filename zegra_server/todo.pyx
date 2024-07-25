@@ -378,7 +378,7 @@ async def http_hvac_listener(account, config_dict, port=HVAC_HTTP_LISTENER_PORT)
       await runner.cleanup()
       return
 
-async def main():
+async def _main():
    """
    Create an asyncio task for each vehicle in the JSON config file to monitor
    battery status.
@@ -391,6 +391,7 @@ async def main():
    the HTTP HVAC listener
    """
 
+   # TODO: Remove - moved to __main__.pyx
    #### Turn on info logging by default
    ###if os.path.isfile(LOG_FILE_PATH):
    ###   os.rename(LOG_FILE_PATH, LOG_FILE_PATH + '.old')
@@ -400,51 +401,51 @@ async def main():
    ###                    datefmt='%Y-%m-%d %H:%M:%S',
    ###                    level=logging.INFO)
 
-   # Initialize variables
-   config_dict = ""
-   port        = HVAC_HTTP_LISTENER_PORT # Default this
+   ### Initialize variables
+   ##config_dict = ""
+   ##port        = HVAC_HTTP_LISTENER_PORT # Default this
 
-   # Get arguments
-   opts, args = getopt.getopt(sys.argv[1:], "hvDc:p:", ['help', 'version', 'debug', 'config=', 'port='])
-   has_arg    = {
-      'config_dict': False, # Determine whether or not using the argument config file
-      'port': False         # Determine whether or not using the argument HTTP port
-   }
+   ### Get arguments
+   ##opts, args = getopt.getopt(sys.argv[1:], "hvDc:p:", ['help', 'version', 'debug', 'config=', 'port='])
+   ##has_arg    = {
+   ##   'config_dict': False, # Determine whether or not using the argument config file
+   ##   'port': False         # Determine whether or not using the argument HTTP port
+   ##}
 
-   # Handle options
-   for opt, arg in opts:
-      if opt in   ('-h', '--help'):    # Print a help message and exit gracefully
-         await print_help()
-         sys.exit(0)
+   ### Handle options
+   ##for opt, arg in opts:
+   ##   if opt in   ('-h', '--help'):    # Print a help message and exit gracefully
+   ##      await print_help()
+   ##      sys.exit(0)
 
-      elif opt in ('-v', '--version'): # Print version & licensing and exit gracefully
-         await print_version()
-         sys.exit(0)
+   ##   elif opt in ('-v', '--version'): # Print version & licensing and exit gracefully
+   ##      await print_version()
+   ##      sys.exit(0)
 
-      elif opt in ('-D', '--debug'):   # Turn on debug logging
-         logging.root.setLevel(logging.DEBUG)
-         logging.debug("Turned on debug logging")
+   ##   elif opt in ('-D', '--debug'):   # Turn on debug logging
+   ##      logging.root.setLevel(logging.DEBUG)
+   ##      logging.debug("Turned on debug logging")
 
-      elif opt in ('-c', '--config'):  # Use another config file path than JSON_CONFIG_FILE_PATH
-         config_dict            = await get_config(arg)
-         has_arg['config_dict'] = True
+   ##   elif opt in ('-c', '--config'):  # Use another config file path than JSON_CONFIG_FILE_PATH
+   ##      config_dict            = await get_config(arg)
+   ##      has_arg['config_dict'] = True
 
-      elif opt in ('-p', '--port'):    # Use another port than the default HVAC_HTTP_LISTENER_PORT or from config file
-         port = arg
-         has_arg['port'] = True
+   ##   elif opt in ('-p', '--port'):    # Use another port than the default HVAC_HTTP_LISTENER_PORT or from config file
+   ##      port = arg
+   ##      has_arg['port'] = True
 
-   # Get config from JSON file
-   if not has_arg['config_dict']:
-      config_dict = await get_config()
+   ### Get config from JSON file
+   ##if not has_arg['config_dict']:
+   ##   config_dict = await get_config()
 
-   # Enable debugging if it's enabled in the config file
-   if config_dict['debug']:
-      logging.root.setLevel(logging.DEBUG)
-      logging.debug("Turned on debug logging")
+   ### Enable debugging if it's enabled in the config file
+   ##if config_dict['debug']:
+   ##   logging.root.setLevel(logging.DEBUG)
+   ##   logging.debug("Turned on debug logging")
 
-   # Get port from config if available and if not has_arg['config_dict']
-   if 'http_hvac_listener_port' in config_dict and not has_arg['port']:
-      port = config_dict['http_hvac_listener_port']
+   ### Get port from config if available and if not has_arg['config_dict']
+   ##if 'http_hvac_listener_port' in config_dict and not has_arg['port']:
+   ##   port = config_dict['http_hvac_listener_port']
 
    # asyncio coroutines to gather
    tasks = []
@@ -596,6 +597,6 @@ async def main():
          # Shut down the server ungracefully
          sys.exit(1)
 
-### START ###
-if __name__ == "__main__":
-   asyncio.run(main())
+#### START ###
+#if __name__ == "__main__":
+#   asyncio.run(main())

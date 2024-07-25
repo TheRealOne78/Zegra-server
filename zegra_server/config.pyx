@@ -26,11 +26,10 @@ Read JSON and YAML files
 """
 
 from .constants cimport C_CONFIG_FILE_PATH
-import json
 import yaml
 import os
 
-cdef dict init_config(str config_file_path = C_CONFIG_FILE_PATH.decode('utf-8')):
+cdef dict init_config(bytes config_file_path = C_CONFIG_FILE_PATH):
     """
     Read JSON/YAML config file and return it as a dictionary.
 
@@ -40,18 +39,19 @@ cdef dict init_config(str config_file_path = C_CONFIG_FILE_PATH.decode('utf-8'))
     :rtype: dict
     """
 
-    cdef dict config_dict
-
     # Determine the file extension
     cdef str ext
-    _, ext = os.path.splitext(config_file_path)
+    _, ext = os.path.splitext(config_file_path.decode('utf-8'))
+    ext = ext.lower()
 
-    with open(config_file_path, 'r', encoding="utf8") as config_file:
-        if ext.lower() == '.json':
-            config_dict = json.load(config_file)
-        elif ext.lower() == '.yaml' or ext.lower() == '.yml':
-            config_dict = yaml.safe_load(config_file)
-        else:
-            raise ValueError("Unsupported file extension: {}".format(ext))
+    # Check file extension
+    if ext != '.yaml' and ext != '.yml' and ext != '.json':
+        raise ValueError("Unsupported file extension: {}".format(ext))
+
+    cdef dict config_dict = {}
+
+    # Populate config_dict
+    with open(config_file_path.decode('utf-8'), 'r', encoding="utf8") as config_file:
+        config_dict = yaml.safe_load(config_file)
 
     return config_dict

@@ -36,10 +36,11 @@ setup(
     name        = PROJECT_NAME,
     version     = VERSION_STRING,
     packages    = find_packages(),
+    install_requires = ['Cython'],
     ext_modules = cythonize("zegra_server/*.pyx"),
     entry_points= {
         'console_scripts': [
-            'my_script = bin.zegra_server:main',
+            'zegra-server = zegra_server.__main__:main',
         ],
     },
 )

@@ -1,4 +1,5 @@
 myConfig.json
+myConfig.yaml
 venv/
 *.log*
 *.c

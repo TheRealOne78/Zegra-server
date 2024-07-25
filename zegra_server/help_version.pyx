@@ -27,7 +27,7 @@
 Print help and version on the screen
 """
 
-from constants import *
+from .constants import *
 
 cdef void print_help():
    """

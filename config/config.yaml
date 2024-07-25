@@ -1,0 +1,24 @@
+locales: "<language_REGION>"
+renault_auth:
+    email: "<user@domain>"
+    password: "<password>"
+http_hvac_listener_port: <0-65535>
+NTFY_admin:
+    NTFY_topic: "<URL>"
+    NTFY_auth:
+        username: "<username>"
+        password: "<password>"
+Cars:
+    "<Name>":
+        account_type: "<MYDACIA/MYRENAULT>"
+        VIN: "<VIN>"
+        warn_battery_percentage: <0-100>
+        min_battery_percentage: <0-100>
+        max_battery_temperature: <degrees>
+        check_time: <minutes>
+        max_tries: <max_tries>
+        NTFY_topic: "<URL>"
+        NTFY_auth:
+            username: "<username>"
+            password: "<password>"
+debug: <true/false>

@@ -23,9 +23,4 @@
 
 # cython: language_level=3
 
-"""
-Config data
-"""
-
-cdef dict CONFIG_DICT
-cdef dict init_config(bytes config_file_path = ?)
+cdef dict init_args()

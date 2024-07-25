@@ -26,25 +26,7 @@
 """Constants"""
 
 from .info import *
-
-from libc.stdlib cimport malloc, free
-from libc.string cimport strcpy
-
-cdef char* py_str_to_c_str(str py_str):
-    cdef char* c_str
-    cdef int length
-
-    length = len(py_str) + 1  # +1 for null terminator
-    c_str = <char*> malloc(length)
-    if c_str == NULL:
-        raise MemoryError("Unable to allocate memory for C string.")
-
-    strcpy(c_str, py_str.encode('utf-8'))
-    return c_str
-
-cdef void free_c_str(char* c_str):
-    if c_str != NULL:
-        free(c_str)
+from .pycstr cimport py_str_to_c_str, free_c_str
 
 # Define constants
 cdef char* C_PROJECT_NAME
