@@ -144,12 +144,11 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
          has_none = False
          for name, val in (("battery_percentage",   battery_percentage),
                            ("battery_plugged",      battery_plugged),
-                           ("battery_temperature",  battery_temperature),
                            ("battery_not_charging", battery_not_charging)
                            ):
             # Sometimes RenaultAPI returns this as None, see bug report
             # https://github.com/TheRealOne78/Zegra-server/issues/1
-            if type(val) is NoneType or val == "None":
+            if type(val) is NoneType:
                logger.warning("[%s] Value for `%s' is `%s'",
                             vehicle_nickname,
                             name,
@@ -238,19 +237,20 @@ async def create_vehicle(account, config_vehicle, vehicle_nickname):
 
 
          ## Check if battery is overheating
-         if battery_temperature > config_vehicle['max_battery_temperature'] and not(status_checkers['battery_temp_notified']):
-            title    = f"[{vehicle_nickname}] TEMPERATURĂ BATERIE RIDICATĂ!"
-            message  = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature} °"
-            emoji    = "stop_sign"
-            priority = "urgent"
-            await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
-            status_checkers['battery_temp_notified'] = True
-            logger.debug("[%s] NTFY alerted for battery temperature too high - %s°", vehicle_nickname, battery_temperature)
+         if type(battery_temperature) is not NoneType:
+            if battery_temperature > config_vehicle['max_battery_temperature'] and not(status_checkers['battery_temp_notified']):
+               title    = f"[{vehicle_nickname}] TEMPERATURĂ BATERIE RIDICATĂ!"
+               message  = f"Vehiculul '{vehicle_nickname}' are temperatura bateriei foarte mare - {battery_temperature} °"
+               emoji    = "stop_sign"
+               priority = "urgent"
+               await send_ntfy_notification(ntfy_uri, ntfy_username, ntfy_password, title, message, emoji, priority)
+               status_checkers['battery_temp_notified'] = True
+               logging.debug("[%s] NTFY alerted for battery temperature too high - %s°", vehicle_nickname, battery_temperature)
 
-         # For safety reasons, let it cool to 'max_battery_temperature - 3' before unchecking battery_temp_notified
-         elif battery_temperature - 3 <= config_vehicle['max_battery_temperature']:
-            status_checkers['battery_temp_notified'] = False
-            logger.debug("[%s] Cleared 'battery_temp_notified' temperature status checkers", vehicle_nickname)
+               # For safety reasons, let it cool to 'max_battery_temperature - 3' before unchecking battery_temp_notified
+            elif battery_temperature - 3 <= config_vehicle['max_battery_temperature']:
+               status_checkers['battery_temp_notified'] = False
+               logging.debug("[%s] Cleared 'battery_temp_notified' temperature status checkers", vehicle_nickname)
 
          # Sleep async until the next check
          await asyncio.sleep(config_vehicle['check_time'] * 60)
