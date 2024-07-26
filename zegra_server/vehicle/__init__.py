@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 ## Copyright_notice ####################################################
 #                                                                      #
 # SPDX-License-Identifier: AGPL-3.0-or-later                           #
@@ -23,26 +21,4 @@
 #                                                                      #
 ########################################################################
 
-"""
-Setup file for zegra-server PyPA packaging
-"""
-
-from setuptools import setup, find_packages
-from Cython.Build import cythonize
-
-from zegra_server import PROJECT_NAME, VERSION_STRING
-
-setup(
-    name        = PROJECT_NAME,
-    version     = VERSION_STRING,
-    packages    = find_packages(),
-    install_requires = ['Cython'],
-    ext_modules = cythonize(["zegra_server/*.pyx",
-                             "zegra_server/vehicle/*.pyx"
-                             ]),
-    entry_points= {
-        'console_scripts': [
-            'zegra-server = zegra_server.__main__:main',
-        ],
-    },
-)
+"""__init__.py"""

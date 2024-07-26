@@ -23,7 +23,17 @@
 
 """Zegra Server"""
 
-from .info import *
+# Project name
+PROJECT_NAME = "Zegra-server"
+
+# Version string
+VERSION_STRING = "2.0.0-alpha"
+
+# Project author name
+PROJECT_AUTHOR_NAME = "TheRealOne78"
+
+# Project author E-Mail
+PROJECT_AUTHOR_EMAIL = "bajcsielias78@gmail.com"
 
 # Define package-level metadata
 __project_name__ = PROJECT_NAME

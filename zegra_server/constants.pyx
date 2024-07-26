@@ -25,7 +25,7 @@
 
 """Constants"""
 
-from .info import *
+from . import *
 from .pycstr cimport py_str_to_c_str, free_c_str
 
 # Define constants

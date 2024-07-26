@@ -44,17 +44,17 @@ async def send_ntfy_notification(uri,
    'emoji' contains emojies that will appear before the title
    """
 
-   cdef dict headers = {
-      'Title': title,
-      'Tags': emoji,
-      'Priority': priority
-   }
-
    # Send NTFY push asynchronously
    try:
       async with aiohttp.ClientSession() as session:
          auth = aiohttp.BasicAuth(username, password)
-         async with session.post(uri, headers=headers, data=message, auth=auth) as response:
+         async with session.post(uri,
+                                 headers = {
+                                    'Title': title,
+                                    'Tags': emoji,
+                                    'Priority': priority },
+                                 data = message,
+                                 auth = auth) as response:
             if response.status != 200:
                logger.error("Failed to send NTFY notification - HTTP response status `%s`", response.status)
             else:

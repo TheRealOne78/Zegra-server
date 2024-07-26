@@ -52,11 +52,11 @@ cpdef void main():
     if args_dict['debug'] or config_dict['debug']:
         from fastlogging import DEBUG
         log_level = DEBUG
-        log_init(log_file_path = None,
-                 encoding = 'utf-8',
-                 log_format = '[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
-                 date_format = '%Y-%m-%d %H:%M:%S',
-                 log_level = log_level)
+    log_init(log_file_path = None,
+             encoding = 'utf-8',
+             log_format = '[%(asctime)s] [%(levelname).1s] %(name)s: %(message)s',
+             date_format = '%Y-%m-%d %H:%M:%S',
+             log_level = log_level)
 
 
     # Check if NTFY_admin is populated
